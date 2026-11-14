@@ -1,0 +1,502 @@
+{
+ "harmonization": {
+  "created": "2026-11-14 20:26",
+  "data_last_local_date": "2026-11-12",
+  "target_scale": "VIIRS S-NPP 375 m equivalent (single satellite)",
+  "grid_res_deg": 0.25,
+  "start_year": 2003,
+  "drop_low_conf": true,
+  "filter_stats": {
+   "tong_ban_dau": 2150070,
+   "bo_type_1_2_3": 58223,
+   "o_100m_nha_may_nhan_NASA": 13363,
+   "o_1km_quy_tac_lien_tuc": 46,
+   "bo_them_do_mat_na_nhan_NASA": 28876,
+   "bo_them_do_quy_tac_lien_tuc": 79,
+   "trong_do_NRT_bi_loai": 2703,
+   "bo_do_tin_cay_thap": 152650,
+   "con_lai": 1902718,
+   "bo_diem_trung": 73,
+   "bo_truoc_START_YEAR": 7524
+  },
+  "noaa20_to_snpp_factor": 0.9914280832098574,
+  "noaa20_factor_months_used": 103,
+  "noaa21_to_snpp_factor": 1.038579705838657,
+  "snpp_gap_fill": {
+   "passes": 178,
+   "filled_points": 7441.80029296875,
+   "by_reason": {
+    "A_EMPTY": 98,
+    "official": 80
+   },
+   "rule": "luot bay (ngay VN x ngay/dem): S-NPP=0 va tham chieu >= 5, hoac S-NPP < 30% NOAA-20 (NOAA-20 >= 1000000000), hoac nam trong dot mat du lieu NOAA/NASA cong bo; bu bang NOAA-20 x c_n20 (NOAA-21 x c_n21, truoc 2018 Aqua x ty le thang)"
+  },
+  "chosen_model": "D_glm_lan_can_alpha0.0001",
+  "final_fit_period": [
+   "2012-02",
+   "2021-12"
+  ],
+  "glm_coef_logM_indM_logMnb": [
+   0.6186997919031192,
+   0.45910464023078906,
+   0.4665194289193797
+  ],
+  "ci90_log_ratio_monthly_loyo": [
+   -0.4043538570213845,
+   0.15868314409353773
+  ],
+  "ci90_log_ratio_yearly_loyo": [
+   -0.05801897906309918,
+   0.05547463554478652
+  ],
+  "n_loyo_years": 9,
+  "partial_month": "2026-11",
+  "point_weight_coverage_modeled_period": 0.9101552091371242,
+  "note_point_weights": "Vung tu ve: harmonized = sum(weight) cac diem trong vung. Giai doan 2003-01/2012 chi phu ~91% vi phan du doan o cac o M=0 (nhung M_nb>0) khong co diem Aqua nao de gan trong so. So theo o/tinh/toan quoc dung grid_monthly (day du).",
+  "outputs": {
+   "hotspots": "D:\\File trong Zalo\\Nasa Handbook\\output Ds2\\code web\\code\\..\\..\\output_fix2\\hotspots_clean.parquet",
+   "grid_monthly": "D:\\File trong Zalo\\Nasa Handbook\\output Ds2\\code web\\code\\..\\..\\output_fix2\\grid_monthly.parquet",
+   "snpp_aqua_2012_2025": "D:\\File trong Zalo\\Nasa Handbook\\output Ds2\\code web\\code\\..\\..\\output_fix2\\hotspots_snpp_aqua_2012_2025.csv.gz"
+  }
+ },
+ "validation_models": [
+  {
+   "model": "A_ty_le_toan_quoc",
+   "o_MAE": 4.9977,
+   "o_poisson_deviance": 36.6294,
+   "o_R2_log1p": 0.5826,
+   "qg_bias_%": -5.038,
+   "qg_R2": 0.9838,
+   "qg_MAPE_%": 16.0974,
+   "lich_spearman_thang_tb": 0.9563,
+   "o_spearman_median": 0.6153
+  },
+  {
+   "model": "B_ty_le_theo_o_co_ve",
+   "o_MAE": 4.4513,
+   "o_poisson_deviance": 35.9056,
+   "o_R2_log1p": 0.5897,
+   "qg_bias_%": -3.7278,
+   "qg_R2": 0.989,
+   "qg_MAPE_%": 15.3729,
+   "lich_spearman_thang_tb": 0.9476,
+   "o_spearman_median": 0.6153
+  },
+  {
+   "model": "D_glm_lan_can_alpha0.0001",
+   "o_MAE": 3.8603,
+   "o_poisson_deviance": 4.0176,
+   "o_R2_log1p": 0.7187,
+   "qg_bias_%": -3.1877,
+   "qg_R2": 0.9891,
+   "qg_MAPE_%": 17.3516,
+   "lich_spearman_thang_tb": 0.958,
+   "o_spearman_median": 0.7081
+  },
+  {
+   "model": "D_glm_lan_can_alpha0.001",
+   "o_MAE": 3.8897,
+   "o_poisson_deviance": 4.0942,
+   "o_R2_log1p": 0.7226,
+   "qg_bias_%": -3.3077,
+   "qg_R2": 0.9891,
+   "qg_MAPE_%": 17.2267,
+   "lich_spearman_thang_tb": 0.9528,
+   "o_spearman_median": 0.7086
+  },
+  {
+   "model": "D_glm_lan_can_alpha0.0001_DRIFT_CHECK_2022+",
+   "o_MAE": 3.8641,
+   "o_poisson_deviance": 4.4521,
+   "o_R2_log1p": 0.6702,
+   "qg_bias_%": 6.9463,
+   "qg_R2": 0.9028,
+   "qg_MAPE_%": 30.2862,
+   "lich_spearman_thang_tb": 0.9248,
+   "o_spearman_median": 0.6503
+  }
+ ],
+ "validation_by_province": [
+  {
+   "province_id": "an-giang",
+   "V_test": 13704,
+   "r": 0.9838,
+   "bias_pct": 1.1678,
+   "mape_pct_V20": 35.2947,
+   "spearman_lich": 0.9563,
+   "ci_q05": -1.9696,
+   "ci_q95": 0.6085,
+   "province_name": "An Giang"
+  },
+  {
+   "province_id": "bac-ninh",
+   "V_test": 1079,
+   "r": 0.6116,
+   "bias_pct": -23.6804,
+   "mape_pct_V20": 45.3793,
+   "spearman_lich": 0.5393,
+   "ci_q05": -0.4175,
+   "ci_q95": 1.0731,
+   "province_name": "Bắc Ninh"
+  },
+  {
+   "province_id": "ca-mau",
+   "V_test": 1250,
+   "r": 0.9567,
+   "bias_pct": 28.0706,
+   "mape_pct_V20": 25.6528,
+   "spearman_lich": 0.7715,
+   "ci_q05": -2.5504,
+   "ci_q95": 0.327,
+   "province_name": "Cà Mau"
+  },
+  {
+   "province_id": "can-tho",
+   "V_test": 5069,
+   "r": 0.9661,
+   "bias_pct": -2.432,
+   "mape_pct_V20": 28.3755,
+   "spearman_lich": 0.8282,
+   "ci_q05": -3.0707,
+   "ci_q95": 0.4427,
+   "province_name": "Cần Thơ"
+  },
+  {
+   "province_id": "cao-bang",
+   "V_test": 1024,
+   "r": 0.8285,
+   "bias_pct": 5.4458,
+   "mape_pct_V20": 34.3451,
+   "spearman_lich": 0.8336,
+   "ci_q05": -2.1222,
+   "ci_q95": 0.5665,
+   "province_name": "Cao Bằng"
+  },
+  {
+   "province_id": "da-nang",
+   "V_test": 10930,
+   "r": 0.9261,
+   "bias_pct": -13.8047,
+   "mape_pct_V20": 26.9339,
+   "spearman_lich": 0.9248,
+   "ci_q05": -0.6551,
+   "ci_q95": 0.7138,
+   "province_name": "Đà Nẵng"
+  },
+  {
+   "province_id": "dak-lak",
+   "V_test": 23086,
+   "r": 0.9259,
+   "bias_pct": -6.1154,
+   "mape_pct_V20": 42.9075,
+   "spearman_lich": 0.8986,
+   "ci_q05": -0.7163,
+   "ci_q95": 0.6991,
+   "province_name": "Đắk Lắk"
+  },
+  {
+   "province_id": "dien-bien",
+   "V_test": 21406,
+   "r": 0.989,
+   "bias_pct": -7.5729,
+   "mape_pct_V20": 20.8927,
+   "spearman_lich": 0.9785,
+   "ci_q05": -2.785,
+   "ci_q95": 0.6302,
+   "province_name": "Điện Biên"
+  },
+  {
+   "province_id": "dong-nai",
+   "V_test": 4136,
+   "r": 0.7622,
+   "bias_pct": 17.096,
+   "mape_pct_V20": 67.0327,
+   "spearman_lich": 0.8002,
+   "ci_q05": -1.4477,
+   "ci_q95": 0.4295,
+   "province_name": "Đồng Nai"
+  },
+  {
+   "province_id": "dong-thap",
+   "V_test": 6348,
+   "r": 0.9543,
+   "bias_pct": 10.1469,
+   "mape_pct_V20": 38.9361,
+   "spearman_lich": 0.8339,
+   "ci_q05": -1.8927,
+   "ci_q95": 0.5672,
+   "province_name": "Đồng Tháp"
+  },
+  {
+   "province_id": "gia-lai",
+   "V_test": 26650,
+   "r": 0.9856,
+   "bias_pct": -7.648,
+   "mape_pct_V20": 38.2508,
+   "spearman_lich": 0.9615,
+   "ci_q05": -0.7451,
+   "ci_q95": 0.3584,
+   "province_name": "Gia Lai"
+  },
+  {
+   "province_id": "ha-noi",
+   "V_test": 258,
+   "r": 0.1955,
+   "bias_pct": -35.9084,
+   "mape_pct_V20": 76.4217,
+   "spearman_lich": 0.2124,
+   "ci_q05": -1.1394,
+   "ci_q95": 1.2691,
+   "province_name": "Hà Nội"
+  },
+  {
+   "province_id": "ha-tinh",
+   "V_test": 1754,
+   "r": 0.6519,
+   "bias_pct": 15.8474,
+   "mape_pct_V20": 48.2168,
+   "spearman_lich": 0.6378,
+   "ci_q05": -0.8004,
+   "ci_q95": 0.8182,
+   "province_name": "Hà Tĩnh"
+  },
+  {
+   "province_id": "hai-phong",
+   "V_test": 262,
+   "r": 0.3134,
+   "bias_pct": -6.5369,
+   "mape_pct_V20": 56.8403,
+   "spearman_lich": 0.3062,
+   "ci_q05": -1.6163,
+   "ci_q95": 0.8088,
+   "province_name": "Hải Phòng"
+  },
+  {
+   "province_id": "hue",
+   "V_test": 1831,
+   "r": 0.7537,
+   "bias_pct": -11.1263,
+   "mape_pct_V20": 30.1981,
+   "spearman_lich": 0.7368,
+   "ci_q05": -1.0209,
+   "ci_q95": 0.6208,
+   "province_name": "Huế"
+  },
+  {
+   "province_id": "hung-yen",
+   "V_test": 201,
+   "r": 0.3343,
+   "bias_pct": -43.3156,
+   "mape_pct_V20": NaN,
+   "spearman_lich": 0.358,
+   "ci_q05": -0.9654,
+   "ci_q95": 1.4154,
+   "province_name": "Hưng Yên"
+  },
+  {
+   "province_id": "khanh-hoa",
+   "V_test": 5319,
+   "r": 0.935,
+   "bias_pct": -0.5803,
+   "mape_pct_V20": 48.2607,
+   "spearman_lich": 0.7828,
+   "ci_q05": -1.878,
+   "ci_q95": 0.5134,
+   "province_name": "Khánh Hòa"
+  },
+  {
+   "province_id": "lai-chau",
+   "V_test": 7228,
+   "r": 0.9823,
+   "bias_pct": -4.4267,
+   "mape_pct_V20": 19.6374,
+   "spearman_lich": 0.9412,
+   "ci_q05": -2.7461,
+   "ci_q95": 0.388,
+   "province_name": "Lai Châu"
+  },
+  {
+   "province_id": "lam-dong",
+   "V_test": 17689,
+   "r": 0.9703,
+   "bias_pct": -5.0276,
+   "mape_pct_V20": 79.7772,
+   "spearman_lich": 0.8412,
+   "ci_q05": -1.6277,
+   "ci_q95": 0.4229,
+   "province_name": "Lâm Đồng"
+  },
+  {
+   "province_id": "lang-son",
+   "V_test": 2326,
+   "r": 0.9716,
+   "bias_pct": 3.0243,
+   "mape_pct_V20": 32.8418,
+   "spearman_lich": 0.8601,
+   "ci_q05": -1.5454,
+   "ci_q95": 0.8464,
+   "province_name": "Lạng Sơn"
+  },
+  {
+   "province_id": "lao-cai",
+   "V_test": 2267,
+   "r": 0.9259,
+   "bias_pct": 8.1576,
+   "mape_pct_V20": 23.5659,
+   "spearman_lich": 0.8806,
+   "ci_q05": -1.8873,
+   "ci_q95": 0.3999,
+   "province_name": "Lào Cai"
+  },
+  {
+   "province_id": "nghe-an",
+   "V_test": 7120,
+   "r": 0.97,
+   "bias_pct": -8.0189,
+   "mape_pct_V20": 20.9161,
+   "spearman_lich": 0.9681,
+   "ci_q05": -0.431,
+   "ci_q95": 0.3873,
+   "province_name": "Nghệ An"
+  },
+  {
+   "province_id": "ninh-binh",
+   "V_test": 283,
+   "r": 0.2378,
+   "bias_pct": -4.2719,
+   "mape_pct_V20": NaN,
+   "spearman_lich": 0.2509,
+   "ci_q05": -1.6955,
+   "ci_q95": 0.8562,
+   "province_name": "Ninh Bình"
+  },
+  {
+   "province_id": "phu-tho",
+   "V_test": 1465,
+   "r": 0.6812,
+   "bias_pct": -3.1605,
+   "mape_pct_V20": 34.8165,
+   "spearman_lich": 0.8235,
+   "ci_q05": -0.8917,
+   "ci_q95": 0.685,
+   "province_name": "Phú Thọ"
+  },
+  {
+   "province_id": "quang-ngai",
+   "V_test": 24222,
+   "r": 0.9756,
+   "bias_pct": -10.9253,
+   "mape_pct_V20": 21.4796,
+   "spearman_lich": 0.9353,
+   "ci_q05": -0.283,
+   "ci_q95": 0.5442,
+   "province_name": "Quảng Ngãi"
+  },
+  {
+   "province_id": "quang-ninh",
+   "V_test": 2824,
+   "r": 0.928,
+   "bias_pct": -11.4785,
+   "mape_pct_V20": 32.8372,
+   "spearman_lich": 0.8473,
+   "ci_q05": -1.0112,
+   "ci_q95": 0.8339,
+   "province_name": "Quảng Ninh"
+  },
+  {
+   "province_id": "quang-tri",
+   "V_test": 7406,
+   "r": 0.9212,
+   "bias_pct": -1.9138,
+   "mape_pct_V20": 28.4618,
+   "spearman_lich": 0.8829,
+   "ci_q05": -0.7081,
+   "ci_q95": 0.4234,
+   "province_name": "Quảng Trị"
+  },
+  {
+   "province_id": "son-la",
+   "V_test": 14126,
+   "r": 0.9889,
+   "bias_pct": -1.0307,
+   "mape_pct_V20": 19.3504,
+   "spearman_lich": 0.9663,
+   "ci_q05": -2.2776,
+   "ci_q95": 0.2804,
+   "province_name": "Sơn La"
+  },
+  {
+   "province_id": "tay-ninh",
+   "V_test": 7237,
+   "r": 0.9857,
+   "bias_pct": 30.2004,
+   "mape_pct_V20": 83.8249,
+   "spearman_lich": 0.8,
+   "ci_q05": -1.6169,
+   "ci_q95": 0.1225,
+   "province_name": "Tây Ninh"
+  },
+  {
+   "province_id": "thai-nguyen",
+   "V_test": 1419,
+   "r": 0.7967,
+   "bias_pct": -3.1802,
+   "mape_pct_V20": 41.9708,
+   "spearman_lich": 0.5784,
+   "ci_q05": -1.3985,
+   "ci_q95": 0.8266,
+   "province_name": "Thái Nguyên"
+  },
+  {
+   "province_id": "thanh-hoa",
+   "V_test": 2434,
+   "r": 0.8667,
+   "bias_pct": 7.1087,
+   "mape_pct_V20": 24.7494,
+   "spearman_lich": 0.8561,
+   "ci_q05": -0.8072,
+   "ci_q95": 0.5676,
+   "province_name": "Thanh Hóa"
+  },
+  {
+   "province_id": "tp-ho-chi-minh",
+   "V_test": 2249,
+   "r": 0.6044,
+   "bias_pct": 13.507,
+   "mape_pct_V20": 55.6202,
+   "spearman_lich": 0.6747,
+   "ci_q05": -1.413,
+   "ci_q95": 0.5581,
+   "province_name": "TP. Hồ Chí Minh"
+  },
+  {
+   "province_id": "tuyen-quang",
+   "V_test": 2350,
+   "r": 0.8512,
+   "bias_pct": 0.9021,
+   "mape_pct_V20": 29.3033,
+   "spearman_lich": 0.8789,
+   "ci_q05": -1.7142,
+   "ci_q95": 0.6273,
+   "province_name": "Tuyên Quang"
+  },
+  {
+   "province_id": "vinh-long",
+   "V_test": 582,
+   "r": 0.8222,
+   "bias_pct": 63.5386,
+   "mape_pct_V20": 40.4709,
+   "spearman_lich": 0.7609,
+   "ci_q05": -2.247,
+   "ci_q95": 0.409,
+   "province_name": "Vĩnh Long"
+  }
+ ],
+ "province_ci_note": "Khoang 90% tung tinh = phan vi 5-95% cua log(V/du doan) tren 48 thang test cua chinh tinh do.",
+ "province_allocation": "So harmonized moi o 0,25 do duoc chia ve tinh: phan gan duoc diem dung vi tri that cua diem; phan chay nho du doan o o MODIS thay 0 chia theo ty le chay VIIRS S-NPP 2012-2021 cua o trong tung tinh.",
+ "province_closure": 1.0000000060623533,
+ "points_assigned_nearest": 63795,
+ "points_outside_vn": 498,
+ "map_cells_note": "Ban do o 0,01 do: tu 2012 la diem VIIRS that; 2003-2011 la vi tri diem MODIS-Aqua nhan he so quy doi (phu ~91% tong so, phan con lai la chay nho khong co vi tri cu the -> chi co trong tong theo tinh/ca nuoc).",
+ "boundaries_source": "github.com/nguyenduy1133/Free-GIS-Data (34 tinh thanh tu 01/07/2025); da sua Ma=31 -> Dong Thap"
+}

@@ -1,0 +1,1 @@
+{"sat": ["Terra", "Aqua", "SNPP", "NOAA20", "NOAA21"], "n": 1902220, "n_std": 1031669, "max": {"std": {"day": {"prov": 72.0, "cell": 4.0}, "hour": {"prov": 56.0, "cell": 3.0}}, "all": {"day": {"prov": 112.0, "cell": 5.0}, "hour": {"prov": 54.0, "cell": 4.0}}}}

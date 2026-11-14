@@ -1,0 +1,1321 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Bản đồ cháy rừng</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Be+Vietnam+Pro:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="lib/d3.min.js"></script>
+<script src="lib/topojson-client.min.js"></script>
+<style>
+:root{--beige:230,213,176;--ink:#e6d5b0;--dim:rgba(230,213,176,.62);--line:rgba(230,213,176,.16);--glass:rgba(9,17,44,.66);--hot:#f08a34}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#10204a 0%,#0a1433 45%,#060b20 100%);color:var(--ink);font-family:"Be Vietnam Pro",system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
+body.terrain{--glass:rgba(9,17,44,.84);--line:rgba(230,213,176,.24)}
+a{color:var(--ink)}a:hover{color:#fff}
+canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+#stars,#terrain{pointer-events:none;transform-origin:0 0}
+#heat{position:absolute;inset:0;pointer-events:none;opacity:0;transition:opacity .5s ease;transform-origin:0 0}
+body.vn #heat{opacity:1;transition:opacity .9s ease .1s}
+.hl{transition:opacity .95s ease,transform .95s cubic-bezier(.2,.7,.2,1);will-change:opacity,transform}
+.hl.pre{opacity:0;transform:translateY(16px) scale(1.025)}
+.hl.on{opacity:1;transform:none}
+.hl.out{opacity:0;transform:translateY(-10px) scale(.985)}
+#map{cursor:grab;touch-action:none}
+#map.grabbing{cursor:grabbing}#map.point{cursor:pointer}
+body.vn #map{cursor:default}body.vn #map.point{cursor:pointer}body.vn #map.grabbing{cursor:grabbing}
+button,select{font:inherit;color:inherit;background:none;border:0;padding:0;cursor:pointer}
+.mono{font-family:"IBM Plex Mono",ui-monospace,monospace}
+header{position:absolute;left:0;right:0;top:0;padding:18px 20px;display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;pointer-events:none;z-index:4}
+header>*{pointer-events:auto}
+.brand{display:flex;align-items:center;gap:10px;font-weight:500;letter-spacing:.01em}
+.brand i{width:8px;height:8px;border-radius:50%;background:var(--hot);box-shadow:0 0 12px 2px rgba(240,138,52,.7)}
+.grow{flex:1}
+.pill{display:inline-flex;align-items:center;gap:6px;height:34px;padding:0 13px;border:1px solid var(--line);border-radius:999px;background:var(--glass);backdrop-filter:blur(10px);color:var(--ink);white-space:nowrap;transition:background .2s,border-color .2s}
+.pill:hover{background:rgba(230,213,176,.14);border-color:rgba(230,213,176,.38)}
+.pill.act{background:rgba(240,138,52,.22);border-color:rgba(240,138,52,.65);color:#fff3da}
+.seg{display:inline-flex;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--glass);backdrop-filter:blur(10px)}
+.seg button{height:28px;padding:0 12px;border-radius:999px;color:var(--dim);white-space:nowrap;transition:background .25s,color .25s}
+.seg button:hover{color:var(--ink)}
+.seg button.act{background:rgba(230,213,176,.18);color:#fff3da}
+.vnonly{opacity:0;visibility:hidden;transform:translateY(8px);transition:opacity .5s ease,transform .5s ease,visibility 0s .5s}
+body.vn .vnonly{opacity:1;visibility:visible;transform:none;transition:opacity .7s ease .15s,transform .7s ease .15s}
+#fit{position:absolute;left:20px;top:70px;opacity:0;pointer-events:none;transition:opacity .3s,background .2s,border-color .2s;z-index:4}
+body.vn #fit.show{opacity:1;pointer-events:auto}
+#hint{position:absolute;left:50%;top:76px;transform:translateX(-50%);text-align:center;color:var(--dim);pointer-events:none;transition:opacity .5s;width:min(90%,520px);line-height:1.5;z-index:3}
+#hint b{display:block;font-weight:300;font-size:clamp(22px,3.2vw,34px);color:var(--ink);letter-spacing:-.01em;margin-bottom:6px;text-wrap:balance}
+body:not(.globe) #hint{opacity:0}
+#vnChip{position:absolute;left:0;top:0;height:32px;padding:0 12px 0 10px;border-radius:999px;border:1px solid rgba(255,190,120,.55);background:rgba(20,16,30,.78);backdrop-filter:blur(8px);color:#ffe9c6;display:flex;align-items:center;gap:8px;white-space:nowrap;opacity:0;pointer-events:none;transition:opacity .35s;z-index:4}
+#vnChip i{width:6px;height:6px;border-radius:50%;background:var(--hot)}
+#vnChip.show{opacity:1;pointer-events:auto}
+body:not(.globe) #vnChip{opacity:0;pointer-events:none}
+
+/* Patrol button right between #styles (top:18px) and #panel (top:104px) */
+#patrolBtn{position:absolute;right:20px;top:60px;z-index:4}
+
+#panel{position:absolute;right:20px;top:104px;width:306px;padding:18px;border:1px solid var(--line);border-radius:16px;background:var(--glass);backdrop-filter:blur(12px);z-index:4;max-height:calc(100vh - 180px);display:flex;flex-direction:column}
+.lab{font-size:11px;letter-spacing:.09em;text-transform:uppercase;color:var(--dim)}
+#total{font-size:42px;font-weight:300;line-height:1.1;margin:6px 0 2px;color:#fff3da;letter-spacing:-.02em}
+#period2{color:var(--dim);font-size:12px;line-height:1.5}
+#top{margin-top:16px;padding-top:14px;border-top:1px solid var(--line);display:grid;gap:10px;overflow-y:auto;padding-right:2px}
+#top::-webkit-scrollbar{width:4px}
+#top::-webkit-scrollbar-thumb{background:rgba(230,213,176,.22);border-radius:4px}
+.row{display:grid;grid-template-columns:22px minmax(0,1fr) auto;gap:4px 8px;align-items:baseline}
+.row .n{color:var(--dim);font-size:11px}
+.row .nm{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .v{font-size:12px;color:#fff3da}
+.row .bar{grid-column:2/4;height:3px;border-radius:2px;background:rgba(230,213,176,.1);overflow:hidden}
+.row .bar s{display:block;height:100%;width:0;border-radius:2px;transition:width .7s cubic-bezier(.2,.7,.2,1),background .7s}
+#topMore{margin-top:10px;align-self:flex-start;font-size:12px;color:var(--ink);padding:5px 11px;border:1px solid var(--line);border-radius:999px;background:rgba(230,213,176,.06);transition:background .2s}
+#topMore:hover{background:rgba(230,213,176,.16)}
+
+/* Patrol panel inside #panel */
+#fireBox{display:flex;flex-direction:column;min-height:0;overflow:hidden}
+#patrolBox{display:none;flex-direction:column;gap:12px;overflow-y:auto}
+body.patrol #fireBox{display:none}
+body.patrol #patrolBox{display:flex}
+.psel{width:100%;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:10px;background:rgba(9,17,44,.75);color:#fff3da;font-size:13px}
+.pmonths{display:grid;grid-template-columns:repeat(6,1fr);gap:4px}
+.pmonths button{height:28px;border-radius:7px;border:1px solid var(--line);font-size:12px;color:var(--dim);transition:background .15s,color .15s}
+.pmonths button:hover{background:rgba(230,213,176,.12);color:var(--ink)}
+.pmonths button.act{background:var(--ink);color:#0a1433;font-weight:500;border-color:transparent}
+.pchk{display:flex;align-items:center;gap:8px;font-size:13px;cursor:pointer;user-select:none}
+.pchk input{accent-color:#e22b2b;width:15px;height:15px;cursor:pointer}
+.pstats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.pstat{padding:8px;border:1px solid var(--line);border-radius:10px;background:rgba(230,213,176,.04);text-align:center}
+.pstat b{display:block;font-size:16px;font-weight:500;margin-bottom:2px}
+.pstat span{font-size:11px;color:var(--dim)}
+.pempty{font-size:12px;color:#ffc98a;line-height:1.45;padding:8px 10px;border:1px solid rgba(255,201,138,.25);border-radius:10px;background:rgba(255,201,138,.06)}
+#patrolCard{padding:11px 12px;border:1px solid rgba(230,213,176,.26);border-radius:12px;background:rgba(9,17,44,.78);font-size:12px;line-height:1.5;display:none;gap:8px;flex-direction:column}
+#patrolCard.show{display:flex}
+.dirbtn{display:inline-flex;align-items:center;justify-content:center;gap:6px;height:32px;padding:0 12px;border-radius:999px;background:var(--ink);color:#0a1433;font-weight:500;text-decoration:none;font-size:12px}
+.dirbtn:hover{background:#fff;color:#0a1433}
+
+/* Vertical Legend on Left */
+#legend{position:absolute;left:20px;top:50%;transform:translateY(-50%);z-index:4;display:flex;flex-direction:column;gap:8px;padding:12px 11px;border:1px solid var(--line);border-radius:14px;background:var(--glass);backdrop-filter:blur(10px)}
+body.vn #legend{transform:translateY(-50%)}
+#legend .vwrap{display:flex;align-items:stretch;gap:9px}
+#legend .g{width:10px;height:156px;border-radius:5px;background:linear-gradient(0deg,rgba(230,213,176,.14),#f2c063 28%,#f08a34 52%,#e2482a 76%,#a80f1d);border:1px solid rgba(230,213,176,.2)}
+#legend .vt{display:flex;flex-direction:column;justify-content:space-between;font-size:11px;color:var(--dim);padding:1px 0}
+#legend .vt b{display:block;color:#fff3da;font-weight:500;font-size:12px}
+#legend .pleg{display:none;flex-direction:column;gap:8px;font-size:11px}
+#legend .pleg i{display:inline-block;width:10px;height:10px;border-radius:3px;margin-right:6px;vertical-align:middle}
+body.patrol #legend .vwrap{display:none}
+body.patrol #legend .pleg{display:flex}
+
+/* Bottom bar */
+#bar{position:absolute;left:50%;bottom:22px;translate:-50% 0;display:flex;flex-wrap:wrap;justify-content:center;align-items:center;gap:8px;max-width:calc(100% - 220px);z-index:4}
+#bar.vnonly{transform:translateY(8px)}
+body.patrol #bar{opacity:0;pointer-events:none;visibility:hidden}
+.stepper{display:inline-flex;align-items:center;gap:2px;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--glass);backdrop-filter:blur(10px)}
+.stepper .ar{width:28px;height:28px;border-radius:50%;color:var(--dim)}
+.stepper .ar:hover{background:rgba(230,213,176,.12);color:var(--ink)}
+#plabel{height:28px;min-width:168px;padding:0 12px;border-radius:999px;color:#fff3da;font-size:13px;display:flex;align-items:center;justify-content:center;gap:8px}
+#plabel:hover,#plabel.open{background:rgba(230,213,176,.14)}
+#plabel u{text-decoration:none;font-size:9px;color:var(--dim);transition:transform .25s}
+#plabel.open u{transform:rotate(180deg)}
+#picker{position:absolute;left:50%;bottom:calc(100% + 12px);translate:-50% 0;width:min(320px,calc(100vw - 24px));padding:14px;border:1px solid rgba(230,213,176,.24);border-radius:16px;background:rgba(9,17,44,.92);backdrop-filter:blur(14px);box-shadow:0 20px 50px rgba(0,0,0,.45);opacity:0;visibility:hidden;transform:translateY(10px) scale(.98);transform-origin:50% 100%;transition:opacity .25s,transform .25s,visibility 0s .25s}
+#picker.open{opacity:1;visibility:visible;transform:none;transition:opacity .25s,transform .25s}
+.ph{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.ph span,.ph .pjump{font-weight:500}.ph .pjump{width:auto;height:auto;white-space:nowrap;padding:4px 12px;border-radius:999px;color:var(--ink);transition:background .15s}.ph .pjump:hover{background:rgba(230,213,176,.14)}
+.ph button{width:28px;height:28px;border-radius:50%;color:var(--dim)}.ph button:hover{background:rgba(230,213,176,.12);color:var(--ink)}
+.gr{display:grid;gap:4px}
+.gr button{height:34px;border-radius:9px;color:var(--ink);font-size:13px;transition:background .15s}
+.gr button:hover{background:rgba(230,213,176,.12)}
+.gr button.act{background:var(--ink);color:#0a1433;font-weight:500}
+.gr button:disabled{opacity:.25;pointer-events:none}
+.gr.d button,.gr.y button{height:30px;font-size:12px}
+.gr .wd{font-size:10px;color:var(--dim);text-align:center;padding:2px 0 4px;text-transform:uppercase;letter-spacing:.06em}
+.sub{margin:12px 0 8px}
+.gr button small{display:block;font-size:9px;line-height:1;margin-top:1px;color:#ffc98a}
+.gr button.act small{color:#7a2a10}
+.gr button.z{color:rgba(230,213,176,.34)}
+
+/* Settings button & popover at bottom right */
+#settingsWrap{position:absolute;right:20px;bottom:22px;z-index:6}
+#settingsPop{position:absolute;right:0;bottom:calc(100% + 10px);width:264px;padding:14px;border:1px solid rgba(230,213,176,.26);border-radius:16px;background:rgba(9,17,44,.94);backdrop-filter:blur(14px);box-shadow:0 20px 50px rgba(0,0,0,.5);display:none;flex-direction:column;gap:12px}
+#settingsPop.open{display:flex}
+.setGrp{display:flex;flex-direction:column;gap:6px}
+.setGrp .seg{width:100%;justify-content:space-between}
+.setGrp .seg button{flex:1;text-align:center;font-size:12px;padding:0 8px}
+
+#tip .pt{display:block;font-size:12px;color:var(--ink);margin-top:3px}
+#tip{position:absolute;left:0;top:0;padding:9px 12px;border-radius:10px;border:1px solid rgba(230,213,176,.28);background:rgba(9,17,44,.94);pointer-events:none;opacity:0;transition:opacity .15s;max-width:320px;z-index:7}
+#tip b{font-weight:500;display:block;margin-bottom:2px}
+#tip span{color:var(--dim);font-size:12px}
+#tip em{font-style:normal;color:#ffc98a}
+#loading{position:absolute;left:50%;top:50%;translate:-50% -50%;color:var(--dim);transition:opacity .4s;pointer-events:none;z-index:5}
+@media (max-width:899px){
+  #patrolBtn{top:58px;right:12px}
+  #panel{left:12px;right:12px;top:100px;width:auto;padding:12px 14px;max-height:40vh}
+  #total{font-size:26px;margin:0}
+  #legend{left:12px;top:auto;bottom:84px;transform:none}
+  body.vn #legend{transform:none}
+  #legend .g{height:96px}
+  #fit{left:12px;top:58px}
+  #bar{max-width:calc(100% - 140px);left:12px;translate:0 0;bottom:20px}
+  #settingsWrap{right:12px;bottom:20px}
+  header{padding:12px}
+}
+
+/* Modals (Analytics Calendar/Charts/Region & Method) */
+.modal{position:fixed;inset:0;z-index:20;background:rgba(4,9,24,.78);backdrop-filter:blur(10px);display:none;align-items:center;justify-content:center;padding:18px}
+.modal.open{display:flex}
+.mbox{width:min(1040px,100%);max-height:90vh;background:rgba(10,19,50,.96);border:1px solid rgba(230,213,176,.26);border-radius:18px;display:flex;flex-direction:column;overflow:hidden;box-shadow:0 24px 70px rgba(0,0,0,.6)}
+.mhead{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line);flex-wrap:wrap}
+.mhead h2{margin:0;font-size:16px;font-weight:500;color:#fff3da}
+.mbody{padding:18px;overflow-y:auto;display:flex;flex-direction:column;gap:16px}
+.mbody>*{flex-shrink:0}   /* khong cho bieu do/bang bi co chieu cao trong khung cuon */
+.mclose{margin-left:auto;width:30px;height:30px;border-radius:50%;border:1px solid var(--line);color:var(--dim)}
+.mclose:hover{background:rgba(230,213,176,.14);color:#fff}
+.calgrid{display:grid;grid-template-columns:54px repeat(12,minmax(36px,1fr));gap:3px;font-size:11px}
+.calcell{height:24px;border-radius:4px;display:flex;align-items:center;justify-content:center;color:#fff;cursor:pointer;position:relative;font-family:"IBM Plex Mono",monospace;font-size:10px}
+.calcell:hover{outline:1.5px solid #fff;z-index:2}
+.calhdr{color:var(--dim);text-align:center;padding:4px 0;font-size:11px}
+.calyr{color:var(--dim);display:flex;align-items:center;font-family:"IBM Plex Mono",monospace;font-size:11px}
+.cards3{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:10px}
+.kcard{padding:12px;border:1px solid var(--line);border-radius:12px;background:rgba(230,213,176,.04)}
+.kcard b{display:block;font-size:20px;font-weight:500;color:#fff3da;margin:4px 0 2px}
+.kcard span{font-size:12px;color:var(--dim)}
+.rform{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;align-items:end}
+.rinp{width:100%;height:34px;padding:0 10px;border:1px solid var(--line);border-radius:9px;background:rgba(9,17,44,.8);color:#fff3da;font-size:13px}
+.gr button.qA{box-shadow:inset 0 -2px 0 #ff4d4d}
+.gr button.qB{box-shadow:inset 0 -2px 0 #f08a34}
+.gr button.qD{box-shadow:inset 0 -2px 0 #f2c063}
+</style>
+</head>
+<body class="globe">
+<canvas id="stars"></canvas>
+<canvas id="terrain"></canvas>
+<div id="heat"><canvas id="heatA" class="hl on"></canvas><canvas id="heatB" class="hl pre"></canvas></div>
+<canvas id="map"></canvas>
+
+<header>
+  <button class="pill vnonly" id="back"><span>←</span><span data-i="back"></span></button>
+  <div class="brand"><i></i><span data-i="brand"></span></div>
+  <button class="pill vnonly" id="anaBtn"><span>📊</span><span data-i="anaBtn"></span></button>
+  <button class="pill" id="methBtn"><span>ⓘ</span><span data-i="methBtn"></span></button>
+  <div class="grow"></div>
+  <div class="seg vnonly" id="styles">
+    <button data-s="heat" data-i="sHeat"></button>
+    <button data-s="grid" data-i="sGrid"></button>
+  </div>
+</header>
+
+<button class="pill vnonly" id="patrolBtn"><span>🛡</span><span data-i="patrolBtn"></span></button>
+
+<button class="pill" id="fit"><span>⤺</span><span data-i="fit"></span></button>
+<div id="hint"><b data-i="hintT"></b><span data-i="hint"></span></div>
+<button id="vnChip"><i></i><span data-i="chip"></span></button>
+
+<aside id="panel" class="vnonly">
+  <div id="fireBox">
+    <div class="lab" data-i="total"></div>
+    <div id="total" class="mono">0</div>
+    <div id="period2"></div>
+    <div id="top">
+      <div class="lab" data-i="top"></div>
+      <div id="topRows" style="display:grid;gap:10px"></div>
+    </div>
+    <button id="topMore" style="display:none"></button>
+  </div>
+  <div id="patrolBox">
+    <div class="lab" data-i="patrolTitle"></div>
+    <select id="pProvSel" class="psel"></select>
+    <div>
+      <div class="lab" style="margin-bottom:6px" data-i="patrolMonth"></div>
+      <div class="pmonths" id="pMonths"></div>
+    </div>
+    <label class="pchk"><input type="checkbox" id="pHardOnly"><span data-i="patrolHardOnly"></span></label>
+    <div class="pstats" id="pStats"></div>
+    <div id="pEmpty" class="pempty" style="display:none"></div>
+    <div id="patrolCard"></div>
+  </div>
+</aside>
+
+<div id="legend" class="vnonly">
+  <div class="lab" id="legTitle" data-i="legend"></div>
+  <div class="vwrap">
+    <div class="g"></div>
+    <div class="vt">
+      <div><b class="mono" id="lmax"></b><span data-i="high"></span></div>
+      <div><b class="mono">0</b><span data-i="low"></span></div>
+    </div>
+  </div>
+  <div class="pleg">
+    <div><i style="background:#e22b2b"></i><span data-i="pHigh"></span></div>
+    <div><i style="background:#f08a34"></i><span data-i="pMed"></span></div>
+    <div><i style="background:#f2c063"></i><span data-i="pLow"></span></div>
+  </div>
+</div>
+
+<div id="bar" class="vnonly">
+  <div class="seg" id="modes">
+    <button data-m="day" data-i="mDay"></button>
+    <button data-m="month" data-i="mMonth"></button>
+    <button data-m="quarter" data-i="mQuarter"></button>
+    <button data-m="year" data-i="mYear"></button>
+  </div>
+  <div class="stepper">
+    <button class="ar" id="prev" aria-label="prev">‹</button>
+    <button id="plabel"><span id="ptext"></span><u>▲</u></button>
+    <button class="ar" id="next" aria-label="next">›</button>
+  </div>
+  <div id="picker"></div>
+</div>
+
+<div id="settingsWrap">
+  <div id="settingsPop">
+    <div class="setGrp">
+      <div class="lab" data-i="setLang"></div>
+      <div class="seg" id="langs"><button data-l="vi">Tiếng Việt</button><button data-l="en">English</button></div>
+    </div>
+    <div class="setGrp">
+      <div class="lab" data-i="setTheme"></div>
+      <div class="seg" id="themes"><button data-th="glass" data-i="thGlass"></button><button data-th="terrain" data-i="thTerrain"></button></div>
+    </div>
+    <div class="setGrp">
+      <div class="lab" data-i="setPalette"></div>
+      <div class="seg" id="palettes"><button data-pal="fire" data-i="palFire"></button><button data-pal="cb" data-i="palCb"></button></div>
+    </div>
+    <div class="setGrp">
+      <div class="lab" data-i="setView"></div>
+      <div class="seg" id="views"><button data-vw="globe" data-i="vwGlobe"></button><button data-vw="vn" data-i="vwVn"></button></div>
+    </div>
+  </div>
+  <button class="pill" id="settingsBtn"><span>⚙</span><span data-i="settings"></span></button>
+</div>
+
+
+<div id="anaModal" class="modal">
+  <div class="mbox">
+    <div class="mhead">
+      <h2 data-i="anaTitle"></h2>
+      <div class="seg" id="anaTabs">
+        <button class="act" data-tab="cal" data-i="tabCal"></button>
+        <button data-tab="chart" data-i="tabChart"></button>
+        <button data-tab="reg" data-i="tabReg"></button>
+      </div>
+      <select id="anaProv" class="psel" style="width:190px;height:32px"></select>
+      <button class="mclose" id="anaClose">✕</button>
+    </div>
+    <div class="mbody" id="anaBody"></div>
+  </div>
+</div>
+<div id="methModal" class="modal">
+  <div class="mbox" style="width:min(760px,100%)">
+    <div class="mhead">
+      <h2 data-i="methTitle"></h2>
+      <button class="mclose" id="methClose">✕</button>
+    </div>
+    <div class="mbody" id="methBody" style="font-size:13px;line-height:1.6"></div>
+  </div>
+</div>
+<div id="tip"></div>
+<div id="loading" data-i="loading"></div>
+
+<script>
+const $=s=>document.querySelector(s), $$=s=>[...document.querySelectorAll(s)];
+const DPR=Math.min(window.devicePixelRatio||1,2), BEIGE='230,213,176';
+let NOW={y:2026,m:11,d:12,h:23}, Y0=2003;
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v)), lerp=(a,b,t)=>a+(b-a)*t;
+const sm=t=>{t=clamp(t,0,1);return t*t*(3-2*t)};
+const hash=(a,b=0,c=0,d=0,e=0)=>{const x=Math.sin(a*127.1+b*311.7+c*74.7+d*19.3+e*53.9+3.1)*43758.5453;return x-Math.floor(x)};
+const p2=n=>String(n).padStart(2,'0');
+
+const T={
+ vi:{brand:'Bản đồ cháy rừng',back:'Địa cầu',fit:'Toàn cảnh',hintT:'Kéo địa cầu tới Việt Nam',hint:'Kéo để xoay, lăn chuột để phóng to, bấm vào Việt Nam để mở bản đồ điểm cháy.',chip:'Việt Nam · bấm để mở',
+  sHeat:'Loang nhiệt',sDots:'Lưới chấm',sGrid:'Ô lưới 1 km',cell:'Ô 1 km',mDay:'Ngày',mMonth:'Tháng',mQuarter:'Quý',mYear:'Năm',
+  total:'Tổng điểm cháy',top:'Tỉnh cháy nhiều nhất',showMore:'Xem thêm',showLess:'Thu gọn',
+  legend:'Mức độ cháy',low:'Ít',high:'Nhiều',unit:'điểm cháy',
+  anaBtn:'Lịch & Biểu đồ',methBtn:'Phương pháp',anaTitle:'Phân tích & Lịch cháy (2003–2026)',tabCal:'Lịch năm × tháng',tabChart:'Biểu đồ chuỗi',tabReg:'Vùng & Khoảng ngày',methTitle:'Phương pháp, Kiểm chứng & Hạn chế',setPalette:'Bảng màu',palFire:'Mặc định',palCb:'Mù màu (Cividis)',settings:'Cài đặt',setLang:'Ngôn ngữ',setTheme:'Kiểu nền bản đồ',thGlass:'Trong suốt',thTerrain:'Địa hình thật',setView:'Chế độ xem',vwGlobe:'Địa cầu tròn',vwVn:'Việt Nam',
+  patrolBtn:'Bản đồ tuần tra',patrolTitle:'Bản đồ ưu tiên tuần tra',patrolMonth:'Giai đoạn 2012–2025',patrolHardOnly:'Ô khó tiếp cận',
+  pHigh:'Ưu tiên cao',pMed:'Trung bình',pLow:'Thấp',pCells:'ô',
+  pNoRed:'Không có điểm cháy lặp lại khó tiếp cận ở tỉnh này.',
+  pPopup:(yrs,mo,acc,km,sl)=>`Cháy lặp lại ${yrs}/14 năm (${mo}, 2012–2025). Tiếp cận: ${acc}. Cách đường xe ≈ ${km} km (ước tính). Độ dốc TB ${sl}°.`,
+  pDir:'Chỉ đường (Google Maps)',pFoot:'Tuyến đường kết thúc tại đường xe chạy gần nhất; đoạn cuối có thể phải đi bộ.',
+  accMap:{easy:'Dễ tiếp cận',medium:'Trung bình',hard:'Khó tiếp cận',unknown:'Chưa đánh giá'},
+  loading:'Đang tải bản đồ…',vStd:'Vệ tinh chuẩn',vAll:'Tất cả vệ tinh',dlD:'Đang tải điểm cháy…',more:n=>`+${n} điểm khác`,
+  realStd:s=>`Điểm cháy thật · ${s}`,realAll:'Điểm cháy thật · tất cả vệ tinh',
+  partial:d=>`Chưa đủ tháng, dữ liệu đến ${p2(d.d)}/${p2(d.m)}/${d.y}`,
+  hs:'QĐ. Hoàng Sa',ts:'QĐ. Trường Sa',wd:['T2','T3','T4','T5','T6','T7','CN'],
+  mS:i=>'Th'+(i+1),mF:(m,y)=>`Tháng ${m}, ${y}`,q:(q,y)=>`Quý ${['I','II','III','IV'][q]}, ${y}`,qS:q=>'Quý '+['I','II','III','IV'][q],yr:y=>'Năm '+y,
+  dy:s=>`Ngày ${p2(s.d)}/${p2(s.m)}/${s.y}`},
+ en:{brand:'Fire Map',back:'Globe',fit:'Full view',hintT:'Drag the globe to Vietnam',hint:'Drag to rotate, scroll to zoom, then click Vietnam to open the fire map.',chip:'Vietnam · click to open',
+  sHeat:'Heat glow',sDots:'Dot grid',sGrid:'Grid 1 km',cell:'1 km cell',mDay:'Day',mMonth:'Month',mQuarter:'Quarter',mYear:'Year',
+  total:'Total fire points',top:'Most affected provinces',showMore:'Show more',showLess:'Show less',
+  legend:'Fire intensity',low:'Low',high:'High',unit:'fire points',
+  anaBtn:'Calendar & Charts',methBtn:'Method',anaTitle:'Fire Calendar & Analytics (2003–2026)',tabCal:'Year × Month',tabChart:'Time series',tabReg:'Region & Date range',methTitle:'Method, Validation & Limitations',setPalette:'Color palette',palFire:'Default',palCb:'Colorblind (Cividis)',settings:'Settings',setLang:'Language',setTheme:'Map basemap',thGlass:'Transparent',thTerrain:'Real terrain',setView:'View mode',vwGlobe:'Globe',vwVn:'Vietnam',
+  patrolBtn:'Patrol map',patrolTitle:'Patrol priority map',patrolMonth:'Period 2012–2025',patrolHardOnly:'Hard-to-reach cells',
+  pHigh:'High priority',pMed:'Medium',pLow:'Low',pCells:'cells',
+  pNoRed:'No hard-to-reach recurring hotspots in this province.',
+  pPopup:(yrs,mo,acc,km,sl)=>`Hotspots in ${yrs} of 14 years (${mo}, 2012–2025). Access: ${acc}. Nearest vehicle road ≈ ${km} km (estimate). Mean slope ${sl}°.`,
+  pDir:'Directions (Google Maps)',pFoot:'Route ends at the nearest road; the last stretch may be on foot.',
+  accMap:{easy:'Easy to reach',medium:'Moderate',hard:'Hard to reach',unknown:'Not assessed'},
+  loading:'Loading map…',vStd:'Reference satellite',vAll:'All satellites',dlD:'Loading fire points…',more:n=>`+${n} more`,
+  realStd:s=>`Real detections · ${s}`,realAll:'Real detections · all satellites',
+  partial:d=>`Partial month, data through ${d.d} ${T.en.mS(d.m-1)} ${d.y}`,
+  hs:'Hoàng Sa Is.',ts:'Trường Sa Is.',wd:['Mo','Tu','We','Th','Fr','Sa','Su'],
+  mS:i=>['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][i],
+  mF:(m,y)=>['January','February','March','April','May','June','July','August','September','October','November','December'][m-1]+' '+y,
+  q:(q,y)=>`Q${q+1} ${y}`,qS:q=>'Q'+(q+1),yr:y=>''+y,
+  dy:s=>`${s.d} ${T.en.mS(s.m-1)} ${s.y}`}
+};
+
+let lang='vi', mode='month', style='heat', satSet='std', mapTheme='glass', palMode='fire', showAllProvs=false, patrolMode=false, DQUAL={}, META=null, METHOD=null;
+let sel={y:2026,m:3,d:28,h:13};
+const L=()=>T[lang];
+
+/* ---------- geometry ---------- */
+const map=$('#map'), ctx=map.getContext('2d'), stars=$('#stars'), terrainCv=$('#terrain'), tctx=terrainCv.getContext('2d');
+const heat=[$('#heatA'),$('#heatB')], heatBox=$('#heat');
+const hctx=document.createElement('canvas').getContext('2d');
+const proj=d3.geoOrthographic().clipAngle(90).precision(.3), back=d3.geoOrthographic().clipAngle(90).precision(.5).reflectX(true);
+const path=d3.geoPath(proj,ctx), pathB=d3.geoPath(back,ctx), pathS=d3.geoPath(proj), pathT=d3.geoPath(proj,tctx);
+const grat=d3.geoGraticule().step([15,15])();
+const VNC=[106.3,16.2], VNT=[108.6,15.9];
+const ISL=[{k:'hs',c:[111.9,16.5],o:[[-.5,.1],[-.2,-.2],[.1,.3],[.4,0],[.6,-.3],[-.1,.5]]},{k:'ts',c:[114,9.6],o:[[-1.2,-.8],[-.6,.4],[0,0],[.4,.9],[.9,-.3],[-.3,-1.2],[1,1.3],[.2,-.6]]}];
+let mesh110,vn110,mesh50,land50,vn50,provs=null,provFC=null,cents=[];
+let V={w:0,h:0,wide:true}, G={}, VT={}, R={};
+let S={rot:[-165,-12],k:1,c:[0,0],z:0}, anim=null, running=false, last=0, HL=0, dragging=false, hover=-1, selP=-1, gz=1, LW=1;
+let P2D=null,M50_2D=null,LAND50_2D=null,BB=null,vals=[],hi=0;
+let MI=new Map(),PV=null,PROVD=null,CMETA=null,CELLS=new Map(),CUR=null,cellPx=1,hc=-1,CMAX={day:10,month:10,quarter:12,year:14};
+let Z={s:1,x:0,y:0}, Zt={s:1,x:0,y:0}, Zr={s:1,x:0,y:0}, tau=70, drag=null;
+
+const toBase=(x,y)=>[(x-Z.x)/Z.s,(y-Z.y)/Z.s], toScr=p=>[p[0]*Z.s+Z.x,p[1]*Z.s+Z.y];
+const clampZ=o=>{o.s=clamp(o.s,1,14);o.x=clamp(o.x,V.w*(1-o.s),0);o.y=clamp(o.y,V.h*(1-o.s),0);return o};
+function zoomBy(x,y,f){const ns=clamp(Zt.s*f,1,14),bx=(x-Zt.x)/Zt.s,by=(y-Zt.y)/Zt.s;Zt=clampZ({s:ns,x:x-bx*ns,y:y-by*ns});tau=70;kick()}
+function fitBox(b){const [[x0,y0],[x1,y1]]=b,s=clamp(Math.min((R.x1-R.x0)/(x1-x0),(R.y1-R.y0)/(y1-y0))*.7,1.4,10);
+  Zt=clampZ({s,x:(R.x0+R.x1)/2-(x0+x1)/2*s,y:(R.y0+R.y1)/2-(y0+y1)/2*s});tau=200;kick()}
+function resetView(){selP=-1;Zt={s:1,x:0,y:0};tau=200;kick()}
+
+function rewind(f){
+  const fix=poly=>{if(d3.geoArea({type:'Polygon',coordinates:poly})>2*Math.PI)poly.forEach(r=>r.reverse())};
+  const g=f.geometry; if(!g)return; if(g.type==='Polygon')fix(g.coordinates); else if(g.type==='MultiPolygon')g.coordinates.forEach(fix);
+}
+function layout(){
+  const w=innerWidth,h=innerHeight,wide=w>=900; V={w,h,wide};
+  [map,stars,terrainCv,...heat].forEach(c=>{c.width=w*DPR;c.height=h*DPR});
+  G={k:Math.min(w,h)*.62,c:[w/2,h*.62]};
+  const top=wide?96:196,bot=wide?106:166,H=Math.max(160,h-top-bot),W=Math.max(120,wide?w-360-200:w-28),cx=wide?(w-320)/2+50:w/2;
+  VT={k:Math.min(H/2/.1374,W/2/.1105),c:[cx,top+H/2],rot:[-VNT[0],-VNT[1]]};
+  R={x0:cx-W/2,x1:cx+W/2,y0:top,y1:top+H};
+  proj.clipExtent([[-60,-60],[w+60,h+60]]); back.clipExtent([[-60,-60],[w+60,h+60]]);
+  drawStars();
+}
+function drawStars(){
+  const c=stars.getContext('2d'),{w,h}=V; c.setTransform(DPR,0,0,DPR,0,0); c.clearRect(0,0,w,h);
+  const n=Math.round(w*h/24000);
+  for(let i=0;i<n;i++){const x=hash(i,1)*w,y=hash(i,2)*h,r=.35+hash(i,3)*.9,a=.2+hash(i,4)*.6;
+    c.fillStyle=`rgba(${hash(i,5)>.7?'255,236,205':'214,226,255'},${a})`;c.beginPath();c.arc(x,y,r,0,7);c.fill();
+    if(hash(i,6)>.93){c.fillStyle=`rgba(214,226,255,${a*.12})`;c.beginPath();c.arc(x,y,r*4.5,0,7);c.fill()}}
+}
+
+/* ---------- Real satellite/terrain XYZ tile renderer (base cache + hi-res overlay, zero shrink/lag) ---------- */
+const TILES=new Map(), tBase=document.createElement('canvas'), tbCtx=tBase.getContext('2d');
+let TZr={s:1,x:0,y:0,z:-1,theme:''}, terrainDirty=true, baseReady=false, baseW=0, baseH=0;
+const tileLon=(x,z)=>x/Math.pow(2,z)*360-180;
+const tileLat=(y,z)=>{const n=Math.PI-2*Math.PI*y/Math.pow(2,z);return 180/Math.PI*Math.atan(.5*(Math.exp(n)-Math.exp(-n)))};
+const lon2tx=(lon,z)=>Math.floor((lon+180)/360*Math.pow(2,z));
+const lat2ty=(lat,z)=>{const r=clamp(lat,-85,85)*Math.PI/180;return Math.floor((1-Math.log(Math.tan(r)+1/Math.cos(r))/Math.PI)/2*Math.pow(2,z))};
+function getTile(z,x,y){
+  const N=Math.pow(2,z), wx=((x%N)+N)%N; if(y<0||y>=N)return null;
+  const k=`${z}/${wx}/${y}`; let entry=TILES.get(k);
+  if(!entry){
+    const img=new Image(); img.crossOrigin='anonymous';
+    entry={img,ok:false}; TILES.set(k,entry);
+    img.onload=()=>{entry.ok=true;terrainDirty=true;baseReady=false;if(S.z===1&&!anim)kick()};
+    img.src=`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${wx}`;
+  }
+  return entry.ok?entry.img:null;
+}
+function getTileWithFallback(z,x,y){
+  const img=getTile(z,x,y);
+  if(img)return {img,sx:0,sy:0,sw:256};
+  for(let dz=1;dz<=3&&z-dz>=3;dz++){
+    const pz=z-dz, sc=1<<dz, px=x>>dz, py=y>>dz;
+    const pimg=getTile(pz,px,py);
+    if(pimg){const sw=256/sc;return {img:pimg,sx:(x%sc)*sw,sy:(y%sc)*sw,sw}}
+  }
+  return null;
+}
+function drawTri(c,img,sx0,sy0,sx1,sy1,sx2,sy2,dx0,dy0,dx1,dy1,dx2,dy2){
+  const denom=sx0*(sy1-sy2)+sx1*(sy2-sy0)+sx2*(sy0-sy1);
+  if(Math.abs(denom)<1e-3)return;
+  const a=(dx0*(sy1-sy2)+dx1*(sy2-sy0)+dx2*(sy0-sy1))/denom;
+  const b=(dy0*(sy1-sy2)+dy1*(sy2-sy0)+dy2*(sy0-sy1))/denom;
+  const cc=(dx0*(sx2-sx1)+dx1*(sx0-sx2)+dx2*(sx1-sx0))/denom;
+  const d=(dy0*(sx2-sx1)+dy1*(sx0-sx2)+dy2*(sx1-sx0))/denom;
+  const e=(dx0*(sx1*sy2-sx2*sy1)+dx1*(sx2*sy0-sx0*sy2)+dx2*(sx0*sy1-sx1*sy0))/denom;
+  const f=(dy0*(sx1*sy2-sx2*sy1)+dy1*(sx2*sy0-sx0*sy2)+dy2*(sx0*sy1-sx1*sy0))/denom;
+  c.save(); c.beginPath(); c.moveTo(dx0,dy0); c.lineTo(dx1,dy1); c.lineTo(dx2,dy2); c.closePath(); c.clip();
+  c.transform(a,b,cc,d,e,f); c.drawImage(img,0,0); c.restore();
+}
+function drawTilesInto(c,zObj,tz){
+  const {w,h}=V, N=Math.pow(2,tz);
+  const pts=[[0,0],[w,0],[0,h],[w,h],[w/2,h/2]].map(([sx,sy])=>proj.invert([(sx-zObj.x)/zObj.s,(sy-zObj.y)/zObj.s])).filter(Boolean);
+  let minLon=96,maxLon=118,minLat=5,maxLat=27;
+  if(pts.length){
+    minLon=clamp(d3.min(pts,p=>p[0])-2,-179,179); maxLon=clamp(d3.max(pts,p=>p[0])+2,-179,179);
+    minLat=clamp(d3.min(pts,p=>p[1])-2,-80,80); maxLat=clamp(d3.max(pts,p=>p[1])+2,-80,80);
+  }
+  const x0=lon2tx(minLon,tz),x1=lon2tx(maxLon,tz),y0=lat2ty(maxLat,tz),y1=lat2ty(minLat,tz);
+  const P=ll=>{const p=proj(ll);return p?[p[0]*zObj.s+zObj.x,p[1]*zObj.s+zObj.y]:null};
+  c.save(); c.globalAlpha=0.94;
+  for(let tx=x0;tx<=x1;tx++){
+    for(let ty=clamp(y0,0,N-1);ty<=clamp(y1,0,N-1);ty++){
+      const tf=getTileWithFallback(tz,tx,ty); if(!tf)continue;
+      const l0=tileLon(tx,tz),l1=tileLon(tx+1,tz),la0=tileLat(ty,tz),la1=tileLat(ty+1,tz);
+      const sub=2;
+      for(let i=0;i<sub;i++)for(let j=0;j<sub;j++){
+        const u0=i/sub,u1=(i+1)/sub,v0=j/sub,v1=(j+1)/sub;
+        const p00=P([lerp(l0,l1,u0),lerp(la0,la1,v0)]),p10=P([lerp(l0,l1,u1),lerp(la0,la1,v0)]);
+        const p01=P([lerp(l0,l1,u0),lerp(la0,la1,v1)]),p11=P([lerp(l0,l1,u1),lerp(la0,la1,v1)]);
+        if(!p00||!p10||!p01||!p11)continue;
+        const sx0=tf.sx+u0*tf.sw,sx1=tf.sx+u1*tf.sw,sy0=tf.sy+v0*tf.sw,sy1=tf.sy+v1*tf.sw;
+        drawTri(c,tf.img,sx0,sy0,sx1,sy0,sx0,sy1,p00[0],p00[1],p10[0],p10[1],p01[0],p01[1]);
+        drawTri(c,tf.img,sx1,sy0,sx1,sy1,sx0,sy1,p10[0],p10[1],p11[0],p11[1],p01[0],p01[1]);
+      }
+    }
+  }
+  c.fillStyle='rgba(6,12,24,0.14)'; c.fillRect(0,0,w,h);
+  c.restore();
+}
+function ensureBase(){
+  const {w,h}=V;
+  if(baseReady&&baseW===w&&baseH===h)return;
+  tBase.width=w*DPR; tBase.height=h*DPR; baseW=w; baseH=h;
+  tbCtx.setTransform(DPR,0,0,DPR,0,0);
+  tbCtx.fillStyle='#0b1e36'; tbCtx.fillRect(0,0,w,h);
+  if(LAND50_2D){tbCtx.fillStyle='#2a3f28';tbCtx.fill(LAND50_2D)}
+  const tz=clamp(Math.round(Math.log2(VT.k*2*Math.PI/256)),5,6);
+  drawTilesInto(tbCtx,{s:1,x:0,y:0},tz);
+  baseReady=true;
+}
+function renderTerrainNow(){
+  const {w,h}=V; tctx.setTransform(DPR,0,0,DPR,0,0); tctx.clearRect(0,0,w,h);
+  terrainCv.style.transform='';
+  TZr={s:Z.s,x:Z.x,y:Z.y,z:S.z,theme:mapTheme}; terrainDirty=false;
+  if(mapTheme!=='terrain')return;
+  if(S.z<1){
+    tctx.save();
+    tctx.beginPath(); pathT({type:'Sphere'}); tctx.fillStyle='#0b1e36'; tctx.fill();
+    if(land50){tctx.beginPath(); pathT(land50); tctx.fillStyle='#2a3f28'; tctx.fill()}
+    tctx.restore();
+    return;
+  }
+  ensureBase();
+  if(Z.s<=1.45){
+    tctx.drawImage(tBase,0,0,w,h);
+    TZr={s:1,x:0,y:0,z:1,theme:mapTheme};
+    const k=Z.s,tx=Z.x,ty=Z.y;
+    if(k!==1||tx!==0||ty!==0)terrainCv.style.transform=`translate(${tx}px,${ty}px) scale(${k})`;
+  } else {
+    tctx.fillStyle='#0b1e36'; tctx.fillRect(0,0,w,h);
+    if(LAND50_2D){tctx.save();tctx.setTransform(DPR*Z.s,0,0,DPR*Z.s,DPR*Z.x,DPR*Z.y);tctx.fillStyle='#2a3f28';tctx.fill(LAND50_2D);tctx.restore()}
+    const tz=clamp(Math.round(Math.log2(VT.k*Z.s*2*Math.PI/256)),6,10);
+    drawTilesInto(tctx,Z,tz);
+  }
+}
+function syncTerrain(moving){
+  if(mapTheme!=='terrain'){if(TZr.theme==='terrain')renderTerrainNow();return}
+  if(S.z<1){renderTerrainNow();return}
+  if(TZr.z!==1||TZr.theme!==mapTheme||terrainDirty){renderTerrainNow();return}
+  const k=Z.s/TZr.s, tx=Z.x-TZr.x*k, ty=Z.y-TZr.y*k;
+  // If zooming out smaller than what the current hi-res bitmap covers, immediately snap to base layer so it NEVER shrinks into a box!
+  if(moving&&TZr.s>1&&(k<0.98||tx>2||ty>2||tx+V.w*k<V.w-2||ty+V.h*k<V.h-2)){
+    ensureBase();
+    tctx.setTransform(DPR,0,0,DPR,0,0); tctx.drawImage(tBase,0,0,V.w,V.h);
+    TZr={s:1,x:0,y:0,z:1,theme:mapTheme};
+    terrainCv.style.transform=`translate(${Z.x}px,${Z.y}px) scale(${Z.s})`;
+    return;
+  }
+  if(!moving){renderTerrainNow();return}
+  terrainCv.style.transform=`translate(${tx}px,${ty}px) scale(${k})`;
+}
+
+function stroke(p,o,a,lw,col=BEIGE){if(a<=.004)return;ctx.beginPath();p(o);ctx.strokeStyle=`rgba(${col},${a})`;ctx.lineWidth=lw*LW;ctx.stroke()}
+
+function draw(now=0){
+  const {w,h}=V,z=S.z; ctx.setTransform(DPR,0,0,DPR,0,0); ctx.clearRect(0,0,w,h); ctx.lineJoin='round'; LW=1;
+  if(!mesh110)return;
+  proj.rotate(S.rot).scale(S.k).translate(S.c);
+  const vn=z===1&&P2D;
+  if(vn){ctx.setTransform(DPR*Z.s,0,0,DPR*Z.s,DPR*Z.x,DPR*Z.y);LW=1/Z.s}
+  const gA=1-sm(z/.6), pA=provs?sm((z-.5)/.4):0, useHi=false;
+  if(gA>.01){
+    back.rotate([S.rot[0]-180,-S.rot[1]]).scale(S.k).translate(S.c);
+    stroke(pathB,mesh110,.17*gA,.6);
+    stroke(path,{type:'Sphere'},.55*gA,1);
+  }
+  stroke(path,grat,.1*gA+.03*(1-sm(z)),.5);
+  // Always keep surrounding country borders visible even after zooming into Vietnam!
+  const borderCol=mapTheme==='terrain'?'255,245,220':BEIGE;
+  const borderAlpha=z===1?(mapTheme==='terrain'?.55:.42):.72;
+  if(vn&&M50_2D){ctx.strokeStyle=`rgba(${borderCol},${borderAlpha})`;ctx.lineWidth=.85*LW;ctx.stroke(M50_2D)}
+  else stroke(path,useHi?mesh50:mesh110,borderAlpha,.85,borderCol);
+
+  const front=d3.geoDistance(VNC,[-S.rot[0],-S.rot[1]])<1.45;
+  if(pA<1){
+    const hl=z===0?HL:0; ctx.save();
+    if(hl>0){ctx.shadowColor='rgba(255,160,80,.95)';ctx.shadowBlur=16*hl}
+    stroke(path,useHi?vn50:vn110,(.8+.2*hl)*(1-pA),.9+1.1*hl,hl>0?'255,232,196':BEIGE); ctx.restore();
+    if(hl>0&&front){const p=proj(VNC),ph=(now/1700)%1;
+      ctx.beginPath();ctx.arc(p[0],p[1],S.k*.11+S.k*.12*ph,0,7);ctx.strokeStyle=`rgba(255,180,110,${(1-ph)*.55*hl})`;ctx.lineWidth=1;ctx.stroke()}
+  }
+  if(pA>0){
+    if(vn){
+      ctx.strokeStyle=`rgba(${borderCol},${mapTheme==='terrain'?.55:.45})`;ctx.lineWidth=.65*LW;P2D.forEach(p=>ctx.stroke(p));
+      if(hover>=0){ctx.strokeStyle='rgba(255,243,218,1)';ctx.lineWidth=1.6*LW;ctx.stroke(P2D[hover])}
+      if(selP>=0){ctx.strokeStyle='#fff';ctx.lineWidth=2.2*LW;ctx.stroke(P2D[selP])}
+      if(!patrolMode&&hc>=0&&CMETA&&CUR?.has(hc)){const r0=CMETA.res,a=Math.floor(hc/100000),o=hc%100000,p=proj([(o+.5)*r0,(a+.5)*r0]);
+        if(p){const sz=Math.max(cellPx,1.4/Z.s)+3/Z.s;ctx.strokeStyle='#fff';ctx.lineWidth=1.2*LW;ctx.strokeRect(p[0]-sz/2,p[1]-sz/2,sz,sz)}}
+      if(patrolMode&&patrolHover){
+        const p=proj([patrolHover.lon,patrolHover.lat]);
+        if(p){const sz=Math.max(cellPx,2/Z.s)+3/Z.s;ctx.strokeStyle='#fff';ctx.lineWidth=1.5*LW;ctx.strokeRect(p[0]-sz/2,p[1]-sz/2,sz,sz)}
+      }
+      ctx.setTransform(DPR,0,0,DPR,0,0);
+    } else stroke(path,provFC,.5*pA,.6);
+    ctx.font='10px "IBM Plex Mono",monospace';ctx.textBaseline='middle';ctx.textAlign='center';
+    const P=ll=>{const p=proj(ll);return p&&vn?toScr(p):p};
+    ISL.forEach(g=>{ctx.fillStyle=`rgba(${borderCol},${.8*pA})`;
+      g.o.forEach(o=>{const p=P([g.c[0]+o[0],g.c[1]+o[1]]);if(!p)return;ctx.beginPath();ctx.arc(p[0],p[1],1.3,0,7);ctx.fill()});
+      const p=P([g.c[0],g.c[1]-(g.k==='ts'?1.9:1)]);if(p){ctx.fillStyle=`rgba(${borderCol},${.7*pA})`;ctx.fillText(L()[g.k],p[0],p[1])}});
+  }
+}
+
+let heatT=0;
+function syncHeat(moving){
+  const same=Z.s===Zr.s&&Z.x===Zr.x&&Z.y===Zr.y;
+  if(same){heatBox.style.transform='';return}
+  const k=Z.s/Zr.s,tx=Z.x-Zr.x*k,ty=Z.y-Zr.y*k,now=performance.now();
+  if(!moving){renderHeat(heat[hi]);heatBox.style.transform='';heatT=now}
+  else heatBox.style.transform=`translate(${tx}px,${ty}px) scale(${k})`;
+}
+function frame(now){
+  const dt=Math.min(50,now-last); last=now; let busy=false;
+  if(anim){
+    const t=clamp((now-anim.t0)/anim.dur,0,1),e=d3.easeCubicInOut(t),a=anim.a,b=anim.b;
+    S.rot=[a.rot[0]+anim.dl*e,lerp(a.rot[1],b.rot[1],e)]; S.k=a.k*Math.pow(b.k/a.k,e);
+    S.c=[lerp(a.c[0],b.c[0],e),lerp(a.c[1],b.c[1],e)]; S.z=lerp(a.z,b.z,e); busy=true;
+    if(t>=1){S.z=b.z;const cb=anim.done;anim=null;cb&&cb()}
+  } else if(S.z===0){
+    const d=d3.geoDistance(VNC,[-S.rot[0],-S.rot[1]]); HL=clamp(1-(d-.3)/.45,0,1); busy=true;
+    if(!dragging)S.rot[0]+=2.6*dt/1000*clamp((d-.1)/.6,0,1);
+    const chip=$('#vnChip');proj.rotate(S.rot).scale(S.k).translate(S.c);const p=proj(VNC);
+    chip.style.transform=`translate(${p[0]+22}px,${p[1]-46}px)`;chip.classList.toggle('show',HL>.4&&d<1.3);
+  } else if(S.z===1){
+    const a=1-Math.exp(-dt/tau),ds=Zt.s-Z.s,dx=Zt.x-Z.x,dy=Zt.y-Z.y;
+    if(Math.abs(ds)>.004*Zt.s||Math.abs(dx)>.5||Math.abs(dy)>.5){Z.s+=ds*a;Z.x+=dx*a;Z.y+=dy*a;busy=true}else Z={...Zt};
+    if(P2D){syncHeat(busy||!!drag);syncTerrain(busy||!!drag)}
+    $('#fit').classList.toggle('show',Zt.s>1.02);
+  }
+  if(S.z<1)syncTerrain(false);
+  draw(now);
+  if(busy)requestAnimationFrame(frame); else running=false;
+}
+function kick(){if(!running){running=true;last=performance.now();requestAnimationFrame(frame)}}
+function go(b,dur,done){
+  const a={rot:[...S.rot],k:S.k,c:[...S.c],z:S.z};
+  anim={a,b,dl:((b.rot[0]-a.rot[0]+540)%360+360)%360-180,t0:performance.now(),dur,done}; kick();
+}
+
+/* ---------- enter / leave Vietnam ---------- */
+let pending=null;
+function enterVN(){
+  if(anim||S.z!==0)return; document.body.className='moving'+(mapTheme==='terrain'?' terrain':''); hideTip();
+  go({...VT,z:1},2000,async()=>{ if(pending)await pending; Z={s:1,x:0,y:0};Zt={...Z}; buildVN(); calcMax(); update(true);
+    document.body.className='vn'+(mapTheme==='terrain'?' terrain':'')+(patrolMode?' patrol':''); applyLang(); kick(); });
+}
+function leaveVN(){
+  if(anim||S.z!==1)return; closePicker(); hover=-1; hideTip();
+  if(patrolMode)setPatrolMode(false);
+  const wait=Z.s>1.02?450:0; resetView();
+  setTimeout(()=>{Z={s:1,x:0,y:0};Zt={...Z};syncHeat(false);gz=1;document.body.className='moving'+(mapTheme==='terrain'?' terrain':'');
+    go({rot:[VT.rot[0],-14],k:G.k,c:G.c,z:0},1800,()=>{document.body.className='globe'+(mapTheme==='terrain'?' terrain':''); applyLang()})},wait);
+}
+function buildVN(){
+  if(!provs)return; proj.rotate(VT.rot).scale(VT.k).translate(VT.c);
+  P2D=provs.map(f=>new Path2D(pathS(f))); BB=provs.map(f=>pathS.bounds(f));
+  if(mesh50)M50_2D=new Path2D(pathS(mesh50));
+  if(land50)LAND50_2D=new Path2D(pathS(land50));
+  if(CMETA)cellPx=VT.k*CMETA.res*Math.PI/180;
+  if(PROVD)PI2P=PROVD.ids.map(id=>provs.findIndex(f=>f.properties.id===id));
+  if(PROVD&&!PV){const ix=provs.map(f=>PROVD.ids.indexOf(f.properties.id));PV=PROVD.v.map(row=>Float64Array.from(ix,k=>k>=0?row[k]:0))}
+}
+function hit(x,y){if(!P2D)return -1;for(let i=0;i<P2D.length;i++){const b=BB[i];if(x<b[0][0]||x>b[1][0]||y<b[0][1]||y>b[1][1])continue;if(hctx.isPointInPath(P2D[i],x,y))return i}return -1}
+
+/* ---------- fire data ---------- */
+const NAT=new Map(); let dataOK=false;
+const nat=(y,m)=>NAT.get(y*12+m)?.h||0, natRow=(y,m)=>NAT.get(y*12+m);
+const CK=(a,o)=>a*100000+o;
+let DMETA=null, REAL=null, PI2P=[]; const DAYS=new Map(), SATN=['Terra','Aqua','S-NPP','NOAA-20','NOAA-21'];
+const isReal=()=>mode==='day';
+const doy=(y,m,d)=>Math.round((Date.UTC(y,m-1,d)-Date.UTC(y,0,1))/864e5);
+const lowerB=(a,x)=>{let lo=0,hi=a.length;while(lo<hi){const k=(lo+hi)>>1;if(a[k]<x)lo=k+1;else hi=k}return lo};
+const okSat=(D,i)=>(D.sc[i]&128);
+const stdSat=(y,m)=>y*100+m<201202?'MODIS-Aqua':y*100+m<=202610?'VIIRS S-NPP':'VIIRS NOAA-20';
+async function gunzipBuf(buf){const u=new Uint8Array(buf);if(!(u[0]===0x1f&&u[1]===0x8b))return buf;
+  return await new Response(new Blob([u]).stream().pipeThrough(new DecompressionStream('gzip'))).arrayBuffer()}
+function loadDays(y){
+  if(DAYS.has(y))return; DAYS.set(y,'loading');
+  fetch(`data/days/${y}.bin.gz`).then(r=>{if(!r.ok)throw new Error(r.status);return r.arrayBuffer()}).then(gunzipBuf).then(b=>{
+    const n=new DataView(b).getUint32(0,true),o=4+4*n;
+    DAYS.set(y,{n,t:new Uint32Array(b,4,n),la:new Uint16Array(b,o,n),lo:new Uint16Array(b,o+2*n,n),fr:new Uint16Array(b,o+4*n,n),pi:new Uint8Array(b,o+6*n,n),sc:new Uint8Array(b,o+7*n,n)});
+  }).catch(e=>{console.error('days',y,e);DAYS.set(y,{n:0,t:new Uint32Array(0)})})
+  .finally(()=>{if(sel.y===y&&isReal()&&S.z===1)update(); if($('#picker').classList.contains('open'))renderPicker()});
+}
+function realRange(){const s=doy(sel.y,sel.m,sel.d)*1440;return [s,s+1440]}
+function realCompute(){
+  const D=DAYS.get(sel.y); if(!D||D==='loading'){loadDays(sel.y);return null}
+  const [a,b]=realRange(),cells=new Map(),v=new Float64Array(provs.length);
+  for(let i=lowerB(D.t,a),e=lowerB(D.t,b);i<e;i++){if(!okSat(D,i))continue;
+    const k=CK(Math.floor((D.la[i]/4000+8)/.01),Math.floor((D.lo[i]/4000+102)/.01));
+    let c=cells.get(k);if(!c)cells.set(k,c=[]);c.push(i);const p=PI2P[D.pi[i]];if(p>=0)v[p]++}
+  return {D,cells,v};
+}
+function countsBy(unit){
+  const D=DAYS.get(sel.y); if(!D||D==='loading'){loadDays(sel.y);return null}
+  const n=dim(sel.y,sel.m),w=1440,s=doy(sel.y,sel.m,1)*1440,c=new Array(n).fill(0);
+  for(let i=lowerB(D.t,s),e=lowerB(D.t,s+n*w);i<e;i++)if(okSat(D,i))c[Math.floor((D.t[i]-s)/w)]++;
+  return c;
+}
+function realMax(){if(!DMETA)return;const m=DMETA.max[satSet];MAX.day=nice(m.day.prov);CMAX.day=Math.max(2,m.day.cell)}
+function loadYear(y){
+  if(CELLS.has(y))return; CELLS.set(y,'loading');
+  d3.json(`data/cells/${y}.json`).then(j=>{CELLS.set(y,j.m||{}); if(sel.y===y&&S.z===1)update()}).catch(()=>CELLS.set(y,{}));
+}
+function periodCells(){
+  const {y,m}=sel,Y=CELLS.get(y); if(!CMETA)return null; if(!Y||Y==='loading'){loadYear(y);return null}
+  const ms=mode==='year'?d3.range(1,13):mode==='quarter'?[qm(m)+1,qm(m)+2,qm(m)+3]:[m],acc=new Map();
+  ms.forEach(k=>{const L=Y[p2(k)];if(L)for(const [a,o,v] of L){const key=CK(a,o);acc.set(key,(acc.get(key)||0)+v)}});
+  return acc;
+}
+async function loadData(){
+  const [mo,meta,pd,cm,dmeta]=await Promise.all([d3.csv('uploads/national_monthly.csv'),d3.json('uploads/harmonization_metadata.json').catch(()=>null),
+    d3.json('data/province_monthly.json').catch(()=>null),d3.json('data/cells_meta.json').catch(()=>null),d3.json('data/days_meta.json').catch(()=>null)]);
+  DMETA=dmeta; PROVD=pd; if(pd)MI=new Map(pd.months.map((s,i)=>[s,i])); CMETA=cm;
+  META=meta; METHOD=await d3.text('data/method.json').then(t=>JSON.parse(t.replace(/\bNaN\b/g,'null'))).catch(()=>null);   // Python ghi NaN, JSON chuan khong co
+  mo.forEach(r=>NAT.set(+r.year*12+ +r.month,{h:+r.harmonized,cl:+r.ci_low,ch:+r.ci_high,partial:r.is_partial_month==='True',src:r.source_flag,
+    ra:+r.raw_modis_aqua||0,rt:+r.raw_modis_terra||0,rv:+r.raw_viirs_snpp||0,rn:+r.raw_viirs_noaa20||0}));
+  DQUAL=await d3.json('data/daily_quality.json').catch(()=>({}));
+  const lastR=mo.at(-1),d=(meta?.data_last_local_date||'').split('-');
+  Y0=+mo[0].year; NOW={y:+lastR.year,m:+lastR.month,d:+d[2]||dim(+lastR.year,+lastR.month),h:23}; dataOK=true; clampSel();
+}
+const MAX={day:50,month:300,quarter:650,year:1000};
+const dim=(y,m)=>new Date(y,m,0).getDate();
+const qm=m=>Math.floor((m-1)/3)*3, mi=(y,m)=>MI.get(`${y}-${p2(m)}`);
+function agg(S,i){
+  if(!S)return 0; const {y,m}=sel,g=(yy,mm)=>S[mi(yy,mm)]?.[i]||0;
+  if(mode==='month')return g(y,m);
+  if(mode==='quarter'){const q=qm(m);return g(y,q+1)+g(y,q+2)+g(y,q+3)}
+  if(mode==='year'){let s=0;for(let k=1;k<=12;k++)s+=g(y,k);return s}
+  return 0;
+}
+function total(){const {y,m}=sel;
+  if(mode==='month')return nat(y,m);
+  if(mode==='quarter'){const q=qm(m);return nat(y,q+1)+nat(y,q+2)+nat(y,q+3)}
+  if(mode==='year')return d3.sum(d3.range(1,13),k=>nat(y,k));
+  return d3.sum(vals);
+}
+const nice=v=>{const p=Math.pow(10,Math.floor(Math.log10(Math.max(v,1)))-1);return Math.max(1,Math.round(v/p)*p)};
+function maxes(S,n){
+  const tm=[],tq=[],ty=[];
+  for(let y=Y0;y<=NOW.y;y++){const ys=new Float64Array(n);
+    for(let q=0;q<4;q++){const qs=new Float64Array(n);let any=false;
+      for(let m=q*3+1;m<=q*3+3;m++){const row=S[mi(y,m)];if(!row)continue;any=true;let mx=0;for(let i=0;i<n;i++){const v=row[i];if(v>mx)mx=v;qs[i]+=v;ys[i]+=v}tm.push(mx)}
+      if(any)tq.push(d3.max(qs))}
+    ty.push(d3.max(ys))}
+  const Q=a=>nice(d3.quantile(a.sort(d3.ascending),.97));
+  return {month:Q(tm),quarter:Q(tq),year:nice(d3.max(ty)*.9)};
+}
+function calcMax(){ if(!PV)return; Object.assign(MAX,maxes(PV,provs.length));
+  if(CMETA){const m=CMETA.max;CMAX={month:nice(m.month),quarter:nice(m.quarter),year:nice(m.year)}} realMax(); }
+const scaleMax=()=>CMAX[mode];
+const rampFire=d3.interpolateRgbBasis(['#e6d5b0','#f2c063','#f08a34','#e2482a','#a80f1d']);
+const rampCb=d3.interpolateRgbBasis(['#1e3a5f','#3b6ea5','#7c878e','#c9a93b','#fde725']);
+const ramp=t=>(palMode==='cb'?rampCb:rampFire)(t);
+const tOf=v=>Math.min(1,Math.pow(v/MAX[mode],.6));
+const RGB=d3.range(64).map(i=>{const c=d3.rgb(ramp(i/63));return `${c.r},${c.g},${c.b}`});
+const RGB_CB=d3.range(64).map(i=>{const c=d3.rgb(rampCb(i/63));return `${c.r},${c.g},${c.b}`});
+const rgba=(t,a)=>`rgba(${(palMode==='cb'?RGB_CB:RGB)[Math.round(clamp(t,0,1)*63)]},${a})`;
+const SPR=d3.range(16).map(i=>{const cv=document.createElement('canvas');cv.width=cv.height=64;const c=cv.getContext('2d'),
+  g=c.createRadialGradient(32,32,0,32,32,32),col=RGB[Math.round(i/15*63)];g.addColorStop(0,`rgba(${col},1)`);g.addColorStop(.45,`rgba(${col},.35)`);g.addColorStop(1,`rgba(${col},0)`);
+  c.fillStyle=g;c.fillRect(0,0,64,64);return cv});
+function cellItems(){
+  if(!CUR||!CMETA)return []; const r0=CMETA.res,mx=CMAX[mode],out=[];
+  for(const [key,v] of CUR){let p;
+    if(REAL){const i=REAL.cells.get(key)[0],D=REAL.D;p=proj([D.lo[i]/4000+102,D.la[i]/4000+8])}
+    else{const a=Math.floor(key/100000),o=key%100000;p=proj([(o+.5)*r0,(a+.5)*r0])} if(!p)continue;
+    out.push([p[0],p[1],Math.min(1,Math.pow(v/mx,.6))])}
+  return out.sort((A,B)=>A[2]-B[2]);
+}
+
+/* ---------- Patrol Map data & rendering ---------- */
+let PATROL_SUM=null, PATROL_BY_NAME=new Map(), PATROL_CACHE=new Map();
+let pProvName='', pMonth=3, pHardOnly=false, pRows=[], patrolHover=null, patrolSel=null;
+const PCOL={high:'#e22b2b',medium:'#f08a34',low:'#f2c063'};
+
+async function initPatrol(){
+  if(PATROL_SUM)return;
+  const rows=await d3.csv('data/tong_hop_34tinh.csv');
+  PATROL_SUM=rows.map(r=>({id:String(r.province_id).padStart(2,'0'),name:r.province_name,def:+r.default_month||3}));
+  PATROL_SUM.forEach(r=>PATROL_BY_NAME.set(r.name,r));
+  const selEl=$('#pProvSel');
+  selEl.innerHTML=PATROL_SUM.slice().sort((a,b)=>a.name.localeCompare(b.name,'vi')).map(r=>`<option value="${r.name}">${r.name}</option>`).join('');
+  $('#pMonths').innerHTML=d3.range(1,13).map(m=>`<button data-pm="${m}">${m}</button>`).join('');
+  if(!pProvName){
+    const def=(selP>=0&&provs[selP])?provs[selP].properties.shapeName:'Điện Biên';
+    await selectPatrolProv(def,true);
+  }
+}
+async function selectPatrolProv(name,useDefMonth=true){
+  if(!PATROL_BY_NAME.has(name))name='Điện Biên';
+  pProvName=name; $('#pProvSel').value=name;
+  const info=PATROL_BY_NAME.get(name);
+  if(useDefMonth)pMonth=info.def;
+  const idx=provs?provs.findIndex(f=>f.properties.shapeName===name):-1;
+  if(idx>=0){selP=idx;if(S.z===1&&BB&&BB[idx])fitBox(BB[idx])}
+  if(!PATROL_CACHE.has(info.id)){
+    const rows=await d3.csv(`data/patrol_cells/new_${info.id}.csv`);
+    PATROL_CACHE.set(info.id,rows.map(r=>({
+      lat:+r.cell_lat,lon:+r.cell_lon,m:+r.month,yrs:+r.n_years_with_fire,
+      acc:r.access_class,dist:+r.dist_vehicle_m,slope:+r.slope_mean_deg,pri:r.priority_class
+    })));
+  }
+  patrolSel=null; patrolHover=null; $('#patrolCard').classList.remove('show');
+  updatePatrolUI();
+}
+function updatePatrolUI(){
+  $$('#pMonths button').forEach(b=>b.classList.toggle('act',+b.dataset.pm===pMonth));
+  $('#pHardOnly').checked=pHardOnly;
+  const info=PATROL_BY_NAME.get(pProvName); if(!info)return;
+  const all=(PATROL_CACHE.get(info.id)||[]).filter(r=>r.m===pMonth);
+  pRows=pHardOnly?all.filter(r=>r.acc==='hard'):all;
+  const cH=all.filter(r=>r.pri==='high').length,cM=all.filter(r=>r.pri==='medium').length,cL=all.filter(r=>r.pri==='low').length;
+  const t=L();
+  $('#pStats').innerHTML=`
+    <div class="pstat"><b class="mono" style="color:#ff6b6b">${cH}</b><span>${t.pHigh}</span></div>
+    <div class="pstat"><b class="mono" style="color:#f08a34">${cM}</b><span>${t.pMed}</span></div>
+    <div class="pstat"><b class="mono" style="color:#f2c063">${cL}</b><span>${t.pLow}</span></div>`;
+  const emp=$('#pEmpty');
+  if(cH===0){emp.style.display='';emp.textContent=t.pNoRed}else emp.style.display='none';
+  if(S.z===1)swapHeat(true);
+}
+function showPatrolCard(r){
+  const el=$('#patrolCard'); if(!r){el.classList.remove('show');return}
+  const t=L(), mo=t.mS(r.m-1), acc=t.accMap[r.acc]||r.acc, km=(r.dist/1000).toFixed(1);
+  el.innerHTML=`<div>${t.pPopup(r.yrs,mo,acc,km,r.slope.toFixed(1))}</div>
+    <a class="dirbtn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/?api=1&destination=${r.lat},${r.lon}">↗ ${t.pDir}</a>
+    <div style="color:var(--dim);font-size:11px">${t.pFoot}</div>`;
+  el.classList.add('show');
+}
+function setPatrolMode(on){
+  patrolMode=on; $('#patrolBtn').classList.toggle('act',on);
+  document.body.classList.toggle('patrol',on);
+  $('#styles').style.display=on?'none':'';
+  $('#legTitle').textContent=on?L().patrolTitle:L().legend;
+  if(on){initPatrol().then(()=>{updatePatrolUI();kick()})}
+  else{patrolHover=null;patrolSel=null;hideTip();resetView();swapHeat(true);kick()}
+}
+
+function renderHeat(cv){
+  const c=cv.getContext('2d'); c.setTransform(DPR,0,0,DPR,0,0); c.clearRect(0,0,V.w,V.h); Zr={...Z}; if(!P2D)return;
+  c.setTransform(DPR*Z.s,0,0,DPR*Z.s,DPR*Z.x,DPR*Z.y);
+  if(patrolMode){
+    c.fillStyle=mapTheme==='terrain'?'rgba(255,255,255,.04)':`rgba(${BEIGE},.03)`; P2D.forEach(p=>c.fill(p));
+    const sz=Math.max(cellPx,2.2/Z.s), half=sz/2;
+    const ord={low:0,medium:1,high:2};
+    const sorted=pRows.slice().sort((a,b)=>ord[a.pri]-ord[b.pri]);
+    for(const r of sorted){const p=proj([r.lon,r.lat]);if(!p)continue;c.fillStyle=PCOL[r.pri]||'#f2c063';c.fillRect(p[0]-half,p[1]-half,sz,sz)}
+    return;
+  }
+  const items=cellItems(),sz=Math.max(cellPx,1.4/Z.s),half=sz/2;
+  c.fillStyle=mapTheme==='terrain'?'rgba(255,255,255,.03)':`rgba(${BEIGE},.035)`;P2D.forEach(p=>c.fill(p));
+  if(style==='heat'){
+    c.globalCompositeOperation='screen'; const R=Math.max(cellPx*3,(REAL?7:5)/Z.s);
+    items.forEach(([x,y,t])=>{c.globalAlpha=.18+.7*t;c.drawImage(SPR[Math.round(t*15)],x-R,y-R,2*R,2*R)});
+    c.globalAlpha=1;c.globalCompositeOperation='source-over';
+  } else if(style==='grid'){
+    items.forEach(([x,y,t])=>{c.fillStyle=rgba(t,.45+.55*t);c.fillRect(x-half,y-half,sz,sz)});
+  } else {const rm=Math.max(cellPx*.55,(REAL?2.2:1.1)/Z.s);
+    items.forEach(([x,y,t])=>{c.fillStyle=rgba(t,.5+.5*t);c.beginPath();c.arc(x,y,rm*(.55+.45*t),0,7);c.fill()})}
+}
+function swapHeat(instant){
+  const cur=heat[hi],nx=heat[1-hi]; renderHeat(nx); heatBox.style.transform='';
+  nx.style.transition='none'; nx.className=instant?'hl on':'hl pre'; nx.style.zIndex=2; cur.style.zIndex=1;
+  void nx.offsetWidth; nx.style.transition=''; nx.className='hl on'; cur.className='hl out'; hi=1-hi;
+}
+
+/* ---------- UI ---------- */
+const periodText=()=>mode==='day'?L().dy(sel):mode==='month'?L().mF(sel.m,sel.y):mode==='quarter'?L().q(Math.floor((sel.m-1)/3),sel.y):L().yr(sel.y);
+const fmt=n=>Math.round(n).toLocaleString(lang==='vi'?'vi-VN':'en-US');
+function periodNote(){
+  const {y,m}=sel,ms=mode==='year'?d3.range(1,13):mode==='quarter'?[qm(m)+1,qm(m)+2,qm(m)+3]:[m],rs=ms.map(k=>natRow(y,k)).filter(Boolean),out=[periodText()];
+  if(isReal()){
+    const D=DAYS.get(y); out.push(!D||D==='loading'?L().dlD:L().realStd(stdSat(y,m)));
+    if(y<2012)out.push(lang==='vi'?'Điểm Aqua đo thật (chưa nhân hệ số quy đổi ~×6)':'Observed Aqua detections (not scaled ~×6)');
+    const q=DQUAL[`${y}-${p2(m)}-${p2(sel.d)}`];
+    if(q)out.push(q[0]==='A_EMPTY'?(lang==='vi'?`⚠ S-NPP mất dữ liệu ngày này (Loại A) · đã bù ~${Math.round(q[1])} điểm bằng NOAA-20`:`⚠ S-NPP outage day (Type A) · ~${Math.round(q[1])} pts filled from NOAA-20`):q[0]==='B_PARTIAL'?(lang==='vi'?`⚠ S-NPP thiếu một phần (Loại B) · đã bù ~${Math.round(q[1])} điểm bằng NOAA-20`:`⚠ Partial S-NPP outage (Type B) · ~${Math.round(q[1])} pts filled from NOAA-20`):(lang==='vi'?'⚠ Thiếu dữ liệu (chưa có vệ tinh tham chiếu)':'⚠ Suspect missing data (no reference)'));
+  } else if(rs.length&&rs.some(r=>r.src.startsWith('modeled'))){
+    const cl=d3.sum(rs,r=>r.cl), ch=d3.sum(rs,r=>r.ch);
+    out.push(lang==='vi'?`Khoảng tin cậy 90%: ${fmt(cl)}–${fmt(ch)}`:`90% CI: ${fmt(cl)}–${fmt(ch)}`);
+  }
+  if(rs.some(r=>r.partial))out.push(L().partial(NOW));
+  return out.join(' · ');
+}
+function renderTop(){
+  if(!provs)return;
+  const active=d3.range(vals.length).filter(i=>vals[i]>0).sort((a,b)=>{
+    if(vals[b]!==vals[a])return vals[b]-vals[a];
+    return provs[a].properties.shapeName.localeCompare(provs[b].properties.shapeName,'vi');
+  });
+  const mx=active.length?Math.max(1,vals[active[0]]):1;
+  const shown=showAllProvs?active:active.slice(0,5);
+  $('#topRows').innerHTML=shown.map((i,k)=>`<div class="row">
+    <span class="n mono">${k+1}</span>
+    <span class="nm">${provs[i].properties.shapeName}</span>
+    <span class="v mono">${fmt(vals[i])}</span>
+    <div class="bar"><s style="width:${(vals[i]/mx*100).toFixed(1)}%;background:${ramp(Math.max(.25,tOf(vals[i])))}"></s></div>
+  </div>`).join('');
+  const btn=$('#topMore');
+  if(active.length>5){btn.style.display='';btn.textContent=showAllProvs?L().showLess:`${L().showMore} (${active.length})`}
+  else btn.style.display='none';
+}
+
+let totalShown=0,totalAnim=0;
+function update(instant){
+  if(!provs)return;
+  if(isReal()){REAL=realCompute();vals=REAL?Array.from(REAL.v):provs.map(()=>0);CUR=new Map(REAL?[...REAL.cells].map(([k,a])=>[k,a.length]):[])}
+  else{REAL=null;vals=provs.map((_,i)=>Math.round(agg(PV,i)));CUR=periodCells()}
+  if(S.z===1||instant)swapHeat(instant);
+  const tot=total(),from=totalShown,t0=performance.now(),id=++totalAnim;
+  (function tick(n){const t=clamp((n-t0)/700,0,1);totalShown=lerp(from,tot,d3.easeCubicOut(t));$('#total').textContent=fmt(totalShown);if(t<1&&id===totalAnim)requestAnimationFrame(tick)})(t0);
+  renderTop();
+  $('#ptext').textContent=periodText(); $('#period2').innerHTML=periodNote(); $('#lmax').textContent=fmtC(scaleMax())+'+';
+  if(hover>=0||patrolHover)showTip();
+}
+
+function applyLang(){
+  document.documentElement.lang=lang; document.title=L().brand; $$('[data-i]').forEach(e=>e.textContent=L()[e.dataset.i]);
+  $$('#langs button').forEach(b=>b.classList.toggle('act',b.dataset.l===lang));
+  $$('#palettes button').forEach(b=>b.classList.toggle('act',b.dataset.pal===palMode));
+  $$('#themes button').forEach(b=>b.classList.toggle('act',b.dataset.th===mapTheme));
+  $$('#views button').forEach(b=>b.classList.toggle('act',b.dataset.vw===(S.z===1?'vn':'globe')));
+  $$('#modes button').forEach(b=>b.classList.toggle('act',b.dataset.m===mode));
+  $$('#styles button').forEach(b=>b.classList.toggle('act',b.dataset.s===style));
+  $('#legTitle').textContent=patrolMode?L().patrolTitle:L().legend;
+  $('#ptext').textContent=periodText(); $('#period2').innerHTML=periodNote(); $('#total').textContent=fmt(totalShown);
+  renderTop();
+  if(patrolMode){updatePatrolUI();if(patrolSel)showPatrolCard(patrolSel)}
+  if($('#picker').classList.contains('open'))renderPicker();
+  kick();
+}
+const future=(y,m=1,d=1)=>y>NOW.y||(y===NOW.y&&(m>NOW.m||(m===NOW.m&&d>NOW.d)));
+function clampSel(){
+  sel.y=clamp(sel.y,Y0,NOW.y); if(sel.y===NOW.y)sel.m=Math.min(sel.m,NOW.m);
+  sel.d=Math.min(sel.d,dim(sel.y,sel.m)); if(sel.y===NOW.y&&sel.m===NOW.m)sel.d=Math.min(sel.d,NOW.d);
+}
+function step(dir){
+  const re=isReal(),dt=new Date(sel.y,sel.m-1,re?sel.d:1);
+  if(mode==='day')dt.setDate(dt.getDate()+dir); else if(mode==='month')dt.setMonth(dt.getMonth()+dir);
+  else if(mode==='quarter')dt.setMonth(dt.getMonth()+3*dir); else dt.setFullYear(dt.getFullYear()+dir);
+  const n={y:dt.getFullYear(),m:dt.getMonth()+1,d:re?dt.getDate():sel.d,h:sel.h};
+  if(n.y<Y0||future(n.y,mode==='year'?1:mode==='quarter'?Math.floor((n.m-1)/3)*3+1:n.m,re?n.d:1))return;
+  sel=n; clampSel(); changed();
+}
+function changed(){update(); if($('#picker').classList.contains('open'))renderPicker()}
+let pickSub=null;
+function renderPicker(){
+  const t=L(),b=(attr,label,act,dis)=>`<button ${attr}${act?' class="act"':''}${dis?' disabled':''}>${label}</button>`;
+  const yh=`<div class="ph"><button data-dy="-1">‹</button><button class="pjump mono" data-sub="y">${sel.y} ▾</button><button data-dy="1">›</button></div>`; let h='';
+  if(pickSub==='y'){
+    h=`<div class="ph"><button data-sub="back">‹</button><span>${t.yr(sel.y)}</span><span></span></div>
+       <div class="gr y mono" style="grid-template-columns:repeat(6,1fr)">${d3.range(Y0,NOW.y+1).map(y=>b(`data-jy="${y}"`,y,y===sel.y)).join('')}</div>`;
+  } else if(pickSub==='ym'){
+    h=yh+`<div class="gr" style="grid-template-columns:repeat(4,1fr)">${d3.range(12).map(i=>b(`data-jmo="${i+1}"`,t.mS(i),i+1===sel.m,future(sel.y,i+1))).join('')}</div>`;
+  } else if(mode==='year')h=`<div class="gr y mono" style="grid-template-columns:repeat(6,1fr)">${d3.range(Y0,NOW.y+1).map(y=>b(`data-y="${y}"`,y,y===sel.y)).join('')}</div>`;
+  else if(mode==='month')h=yh+`<div class="gr" style="grid-template-columns:repeat(4,1fr)">${d3.range(12).map(i=>b(`data-mo="${i+1}"`,t.mS(i),i+1===sel.m,future(sel.y,i+1))).join('')}</div>`;
+  else if(mode==='quarter'){const q=Math.floor((sel.m-1)/3);h=yh+`<div class="gr" style="grid-template-columns:repeat(4,1fr)">${d3.range(4).map(i=>b(`data-q="${i}"`,t.qS(i),i===q,future(sel.y,i*3+1))).join('')}</div>`}
+  else{const off=(new Date(sel.y,sel.m-1,1).getDay()+6)%7,n=dim(sel.y,sel.m),cd=countsBy('d');
+    const kc=v=>v>=1000?(v/1000).toFixed(1).replace('.',lang==='vi'?',':'.')+'k':v,
+      bc=(attr,label,act,dis,c,qcls='')=>b(attr+(qcls?` class="${qcls}${act?' act':''}"`:c===0&&!act?' class="z"':''),c?`${label}<small>${kc(c)}</small>`:label,act,dis);
+    h=`<div class="ph"><button data-dm="-1">‹</button><button class="pjump" data-sub="ym">${t.mF(sel.m,sel.y)} ▾</button><button data-dm="1">›</button></div>
+    <div class="gr d mono" style="grid-template-columns:repeat(7,1fr)">${t.wd.map(w=>`<div class="wd">${w}</div>`).join('')}${'<i></i>'.repeat(off)}${d3.range(1,n+1).map(d=>{const q=DQUAL[`${sel.y}-${p2(sel.m)}-${p2(d)}`];const qc=q?(q[0]==='A_EMPTY'?'qA':q[0]==='B_PARTIAL'?'qB':'qD'):'';return bc(`data-d="${d}"`,d,d===sel.d,future(sel.y,sel.m,d),cd?cd[d-1]:null,qc)}).join('')}</div>`}
+  $('#picker').innerHTML=h;
+}
+function closePicker(){pickSub=null;$('#picker').classList.remove('open');$('#plabel').classList.remove('open')}
+$('#plabel').onclick=e=>{e.stopPropagation();pickSub=null;const o=!$('#picker').classList.contains('open');if(o)renderPicker();$('#picker').classList.toggle('open',o);$('#plabel').classList.toggle('open',o)};
+$('#picker').onclick=e=>{e.stopPropagation();const d=e.target.closest('button')?.dataset;if(!d)return;
+  if(d.sub==='ym'){pickSub='ym';renderPicker();return}
+  if(d.sub==='y'){pickSub='y';renderPicker();return}
+  if(d.sub==='back'){pickSub=mode==='day'?'ym':null;renderPicker();return}
+  if(d.jy){sel.y=+d.jy;clampSel();pickSub=mode==='day'?'ym':null;changed();return}
+  if(d.jmo){sel.m=+d.jmo;clampSel();pickSub=null;changed();return}
+  if(d.y)sel.y=+d.y; else if(d.mo)sel.m=+d.mo; else if(d.q)sel.m=+d.q*3+1; else if(d.d)sel.d=+d.d;
+  else if(d.dy)sel.y+= +d.dy; else if(d.dm){const dt=new Date(sel.y,sel.m-1+ +d.dm,1);if(dt.getFullYear()<Y0||future(dt.getFullYear(),dt.getMonth()+1))return;sel.y=dt.getFullYear();sel.m=dt.getMonth()+1}
+  clampSel(); changed(); if(d.y||d.mo||d.q||d.d)closePicker()};
+document.addEventListener('click',()=>{closePicker();$('#settingsPop').classList.remove('open')});
+$('#prev').onclick=()=>step(-1); $('#next').onclick=()=>step(1);
+$('#modes').onclick=e=>{const m=e.target.dataset.m;if(!m||m===mode)return;mode=m;clampSel();applyLang();changed()};
+$('#styles').onclick=e=>{const s=e.target.dataset.s;if(!s||s===style)return;style=s;hc=-1;applyLang();$('#lmax').textContent=fmtC(scaleMax())+'+';swapHeat()};
+$('#topMore').onclick=()=>{showAllProvs=!showAllProvs;renderTop()};
+$('#patrolBtn').onclick=()=>setPatrolMode(!patrolMode);
+$('#pProvSel').onchange=e=>selectPatrolProv(e.target.value,true);
+$('#pMonths').onclick=e=>{const m=+e.target.dataset.pm;if(!m||m===pMonth)return;pMonth=m;patrolSel=null;$('#patrolCard').classList.remove('show');updatePatrolUI()};
+$('#pHardOnly').onchange=e=>{pHardOnly=e.target.checked;patrolSel=null;$('#patrolCard').classList.remove('show');updatePatrolUI()};
+
+/* Settings popover handlers */
+$('#settingsBtn').onclick=e=>{e.stopPropagation();$('#settingsPop').classList.toggle('open')};
+$('#settingsPop').onclick=e=>e.stopPropagation();
+$('#langs').onclick=e=>{const l=e.target.dataset.l;if(!l)return;lang=l;applyLang();update(true)};
+$('#themes').onclick=e=>{const th=e.target.dataset.th;if(!th||th===mapTheme)return;mapTheme=th;terrainDirty=true;document.body.classList.toggle('terrain',th==='terrain');applyLang();renderTerrainNow();if(S.z===1)swapHeat(true);kick()};
+$('#views').onclick=e=>{const vw=e.target.dataset.vw;if(!vw)return;if(vw==='vn'&&S.z===0)enterVN();else if(vw==='globe'&&S.z===1)leaveVN();$('#settingsPop').classList.remove('open')};
+$('#back').onclick=leaveVN; $('#vnChip').onclick=enterVN; $('#fit').onclick=resetView;
+
+/* ---------- pointer ---------- */
+const tip=$('#tip'); let mouse=[0,0];
+function hideTip(){tip.style.opacity=0}
+const fmtC=n=>n.toLocaleString(lang==='vi'?'vi-VN':'en-US',{maximumFractionDigits:n<10?1:0});
+function cellAt(b){if(!CMETA||!CUR)return -1;const ll=proj.invert(b);if(!ll)return -1;
+  const r0=CMETA.res,a0=Math.floor(ll[1]/r0),o0=Math.floor(ll[0]/r0),n=clamp(Math.ceil(4/Z.s/Math.max(cellPx,.01)),0,6);
+  let best=-1,bd=1e9;for(let da=-n;da<=n;da++)for(let db=-n;db<=n;db++){const k=CK(a0+da,o0+db);if(CUR.has(k)){const d=da*da+db*db;if(d<bd){bd=d;best=k}}}
+  return best}
+function patrolAt(b){if(!pRows.length)return null;const ll=proj.invert(b);if(!ll)return null;
+  let best=null,bd=1e9,thr=Math.max(0.015,0.035/Z.s);
+  for(const r of pRows){const d=Math.hypot(r.lon-ll[0],r.lat-ll[1]);if(d<thr&&d<bd){bd=d;best=r}}
+  return best}
+function showTip(){
+  if(patrolMode&&patrolHover){
+    const r=patrolHover,t=L(),mo=t.mS(r.m-1),acc=t.accMap[r.acc]||r.acc,km=(r.dist/1000).toFixed(1);
+    tip.innerHTML=`<b>${pProvName}</b><span>${t.pPopup(r.yrs,mo,acc,km,r.slope.toFixed(1))}</span>`;
+  }
+  else if(!patrolMode&&hc>=0&&CUR?.has(hc)&&REAL){const ix=REAL.cells.get(hc),D=REAL.D,f4=v=>v.toFixed(4).replace('.',lang==='vi'?',':'.');
+    const rows=ix.slice(0,5).map(i=>{const m=D.t[i]%1440;return `<span class="pt mono">${p2(Math.floor(m/60))}:${p2(m%60)} · ${SATN[D.sc[i]&7]} · FRP ${fmtC(D.fr[i]/10)} MW · ${f4(D.la[i]/4000+8)}°N ${f4(D.lo[i]/4000+102)}°E</span>`}).join('');
+    tip.innerHTML=`<b>${L().cell}${hover>=0?' · '+provs[hover].properties.shapeName:''}</b><span><em class="mono">${ix.length}</em> ${L().unit} · ${periodText()}</span>${rows}${ix.length>5?`<span class="pt">${L().more(ix.length-5)}</span>`:''}`}
+  else if(!patrolMode&&hc>=0&&CUR?.has(hc)){const a=Math.floor(hc/100000),o=hc%100000,r=CMETA.res,f=v=>v.toFixed(2).replace('.',lang==='vi'?',':'.');
+    tip.innerHTML=`<b>${L().cell}${hover>=0?' · '+provs[hover].properties.shapeName:''}</b><span><em class="mono">${fmtC(CUR.get(hc))}</em> ${L().unit} · ${periodText()}</span><br><span class="mono">${f(a*r)}–${f((a+1)*r)}°N · ${f(o*r)}–${f((o+1)*r)}°E</span>`}
+  else if(hover>=0)tip.innerHTML=`<b>${provs[hover].properties.shapeName}</b>${patrolMode?'':`<span><em class="mono">${fmt(vals[hover])}</em> ${L().unit} · ${periodText()}</span>`}`;
+  else return hideTip();
+  const r=tip.getBoundingClientRect(),x=clamp(mouse[0]+16,8,V.w-r.width-8),y=clamp(mouse[1]-r.height-14,8,V.h-r.height-8);
+  tip.style.transform=`translate(${x}px,${y}px)`;tip.style.opacity=1}
+const onVN=(x,y)=>{proj.rotate(S.rot).scale(S.k).translate(S.c);const p=proj.invert([x,y]);if(!p)return false;const c=proj(p);if(Math.hypot(c[0]-x,c[1]-y)>2)return false;return d3.geoDistance(p,VNC)<.15||d3.geoContains(vn110,p)};
+map.addEventListener('pointerdown',e=>{if(anim||(S.z!==0&&S.z!==1))return;drag={x:e.clientX,y:e.clientY,mv:0};dragging=S.z===0;map.setPointerCapture(e.pointerId)});
+map.addEventListener('pointermove',e=>{mouse=[e.clientX,e.clientY];
+  if(drag){const dx=e.clientX-drag.x,dy=e.clientY-drag.y;drag.mv+=Math.abs(dx)+Math.abs(dy);drag.x=e.clientX;drag.y=e.clientY;
+    if(drag.mv>4)map.classList.add('grabbing');
+    if(S.z===0){const k=57.3/S.k;S.rot[0]+=dx*k;S.rot[1]=clamp(S.rot[1]-dy*k,-80,80)}
+    else if(drag.mv>4){Z.x+=dx;Z.y+=dy;Zt.x+=dx;Zt.y+=dy;clampZ(Z);clampZ(Zt);hover=-1;hc=-1;patrolHover=null;hideTip();kick()}
+    return}
+  if(S.z===0&&!anim&&vn110)map.classList.toggle('point',onVN(e.clientX,e.clientY));
+  else if(S.z===1&&!anim&&P2D){const b=toBase(e.clientX,e.clientY),i=hit(b[0],b[1]);
+    if(patrolMode){const ph=patrolAt(b);if(i!==hover||ph!==patrolHover){hover=i;patrolHover=ph;kick()}map.classList.toggle('point',i>=0||!!ph);showTip()}
+    else{const c=cellAt(b);if(i!==hover||c!==hc){hover=i;hc=c;kick()}map.classList.toggle('point',i>=0);showTip()}}});
+map.addEventListener('pointerup',e=>{if(!drag)return;const mv=drag.mv;drag=null;dragging=false;map.classList.remove('grabbing');
+  if(S.z===1)kick(); if(mv>=6)return;
+  if(S.z===0){if(onVN(e.clientX,e.clientY))enterVN()}
+  else if(S.z===1&&P2D){const b=toBase(e.clientX,e.clientY),i=hit(b[0],b[1]);
+    if(patrolMode){
+      const ph=patrolAt(b);
+      if(ph){patrolSel=ph;showPatrolCard(ph);return}
+      if(i>=0){selectPatrolProv(provs[i].properties.shapeName,true);return}
+      if(Zt.s>1.02)resetView();
+      return;
+    }
+    if(i>=0&&i!==selP){selP=i;fitBox(BB[i])}else if(Zt.s>1.02)resetView()}});
+map.addEventListener('pointerleave',()=>{if(hover>=0||hc>=0||patrolHover){hover=-1;hc=-1;patrolHover=null;hideTip();if(S.z===1)kick()}});
+map.addEventListener('wheel',e=>{e.preventDefault();if(anim)return;const f=Math.exp(-clamp(e.deltaY,-300,300)*.0022);
+  if(S.z===1){zoomBy(e.clientX,e.clientY,f)}else if(S.z===0){gz=clamp(gz*f,.55,3.2);S.k=G.k*gz}},{passive:false});
+addEventListener('resize',()=>{layout();
+  if(anim){anim=null;S={...VT,rot:[...VT.rot],z:1};document.body.className='vn'+(mapTheme==='terrain'?' terrain':'')+(patrolMode?' patrol':'')}
+  if(S.z===1){S.k=VT.k;S.c=[...VT.c];S.rot=[...VT.rot];Z={s:1,x:0,y:0};Zt={...Z};terrainDirty=true;selP=-1;buildVN();update(true);renderTerrainNow();kick()}else{S.k=G.k*gz;S.c=[...G.c]}});
+
+/* ---------- boot ---------- */
+(async()=>{
+  layout(); S.k=G.k; S.c=[...G.c]; applyLang();
+  const j=u=>fetch(u).then(r=>r.json());
+  const dataP=loadData().catch(e=>console.error('fire data failed to load',e));
+  const w=await j('lib/countries-110m.json');
+  mesh110=topojson.mesh(w,w.objects.countries); vn110=topojson.feature(w,w.objects.countries).features.find(f=>f.id==='704');
+  $('#loading').style.opacity=0; kick();
+  pending=(async()=>{
+    try{const w5=await j('lib/countries-50m.json');
+      vn50=topojson.feature(w5,w5.objects.countries).features.find(f=>f.id==='704');
+      land50=topojson.feature(w5,w5.objects.countries);
+      mesh50=topojson.mesh(w5,w5.objects.countries,(a,b)=>a.id!=='704'&&b.id!=='704')}catch(e){vn50=vn110}
+    try{const g=await j('data/provinces.geojson');
+      g.features.forEach(f=>{rewind(f);const p=f.properties;p.shapeName=p.province_name;p.id=p.province_id;p.merged=p.merged_from});
+      provs=g.features}
+    catch(e){provs=[{...(vn50||vn110),properties:{shapeName:'Việt Nam'}}]}
+    provFC={type:'FeatureCollection',features:provs}; cents=provs.map(f=>d3.geoCentroid(f));
+    await dataP;
+  })();
+})();
+
+/* ---------- Analytics & Method Modals ---------- */
+let anaTab='cal';
+function getSeries(provIdx){
+  const rows=[];
+  for(let y=Y0;y<=NOW.y;y++){
+    for(let m=1;m<=12;m++){
+      if(y===NOW.y&&m>NOW.m)continue;
+      const nr=natRow(y,m); if(!nr)continue;
+      let val=nr.h, cl=nr.cl, ch=nr.ch;
+      if(provIdx>=0&&PV){
+        const k=mi(y,m); val=k!==undefined?PV[k][provIdx]:0;
+        const rLow=nr.h>0?nr.cl/nr.h:1, rHigh=nr.h>0?nr.ch/nr.h:1;
+        cl=val*rLow; ch=val*rHigh;
+      }
+      rows.push({y,m,ym:`${y}-${p2(m)}`,val,cl,ch,src:nr.src,partial:nr.partial});
+    }
+  }
+  return rows;
+}
+/* ---------- Bang chung hai hoa: truoc/sau + kiem chung giai doan trung ---------- */
+let OVL=null, EVID=null, evP=null;   // data/evidence.json (export_evidence.py)
+const loadEvid=()=>evP||(evP=d3.json('data/evidence.json').then(j=>{EVID=j;OVL=j.overlap||{months:[]}}).catch(()=>{EVID={};OVL={months:[]}}));
+function svgLegend(items,x,y){return items.map((it,i)=>`<g transform="translate(${x+i*168},${y})"><line x1="0" x2="18" y1="0" y2="0" stroke="${it.c}" stroke-width="${it.w||2}" ${it.d?'stroke-dasharray="5 4"':''}/><text x="24" y="4" fill="#e6d5b0" font-size="11">${it.t}</text></g>`).join('')}
+function beforeAfterHTML(){
+  const vi=lang==='vi',W=920,H=280,P={l:58,r:16,t:44,b:28},yrs=d3.range(Y0,NOW.y);
+  const ci=META?.ci90_log_ratio_yearly_loyo||[0,0];
+  const D=yrs.map(y=>{let ra=0,rv=0,h=0,mod=0;for(let m=1;m<=12;m++){const r=natRow(y,m);if(!r)continue;ra+=r.ra;rv+=r.rv;h+=r.h;if(r.src.startsWith('modeled'))mod+=r.h}
+    const naive=y<2012?ra:rv;return {y,ra,rv,h,naive,lo:h-mod+mod*Math.exp(ci[0]),hi:h-mod+mod*Math.exp(ci[1])}});
+  const x=d3.scaleLinear().domain([Y0,NOW.y-1]).range([P.l,W-P.r]),y=d3.scaleLinear().domain([0,d3.max(D,d=>Math.max(d.naive,d.hi))*1.08]).range([H-P.b,P.t]);
+  const ln=(f,flt)=>d3.line().defined(flt||(()=>true)).x(d=>x(d.y)).y(d=>y(f(d)))(D);
+  const band=d3.area().x(d=>x(d.y)).y0(d=>y(d.lo)).y1(d=>y(d.hi))(D);
+  const a11=D.find(d=>d.y===2011),a12=D.find(d=>d.y===2012),jump=a11&&a12?a12.naive/a11.naive:NaN,hj=a11&&a12?(a12.h/a11.h-1)*100:NaN;
+  const ticks=d3.range(Y0,NOW.y,3);
+  return `<div class="lab" style="margin-top:14px">${vi?'Trước và sau hài hòa · cả nước · tổng theo năm':'Before vs after harmonization · Vietnam · yearly totals'}</div>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:rgba(255,255,255,.02);border-radius:10px">
+    <line x1="${x(2012)}" x2="${x(2012)}" y1="${P.t-6}" y2="${H-P.b}" stroke="rgba(230,213,176,.35)" stroke-dasharray="3 3"/>
+    <text x="${x(2012)+5}" y="${P.t+10}" fill="#e6d5b0" font-size="11">${vi?'VIIRS bắt đầu (2012)':'VIIRS starts (2012)'}</text>
+    <path d="${band}" fill="rgba(242,192,99,.22)"/>
+    <path d="${ln(d=>d.ra)}" fill="none" stroke="#64b5f6" stroke-width="1.6"/>
+    <path d="${ln(d=>d.h)}" fill="none" stroke="#f2c063" stroke-width="3"/>
+    <path d="${ln(d=>d.rv,d=>d.y>=2012)}" fill="none" stroke="#b39ddb" stroke-width="1.4"/>
+    <path d="${ln(d=>d.naive)}" fill="none" stroke="#e2482a" stroke-width="2" stroke-dasharray="5 4"/>
+    ${D.map(d=>`<circle cx="${x(d.y)}" cy="${y(d.h)}" r="3" fill="#f2c063"><title>${d.y}: harmonized ${fmt(d.h)}${d.y<2012?` (90% CI ${fmt(d.lo)}–${fmt(d.hi)})`:''} · MODIS-Aqua ${fmt(d.ra)} · VIIRS S-NPP ${fmt(d.rv)}</title></circle>`).join('')}
+    ${ticks.map(t=>`<text x="${x(t)}" y="${H-8}" fill="#e6d5b0" font-size="11" text-anchor="middle">${t}</text>`).join('')}
+    <text x="${P.l-6}" y="${y(y.domain()[1]/1.08)+4}" fill="#e6d5b0" font-size="11" text-anchor="end">${fmt(y.domain()[1]/1.08)}</text>
+    <text x="${P.l-6}" y="${H-P.b+4}" fill="#e6d5b0" font-size="11" text-anchor="end">0</text>
+    ${svgLegend([{c:'#e2482a',t:vi?'Ghép thô (không hài hòa)':'Naive splice',d:1},{c:'#64b5f6',t:'MODIS-Aqua (1 km)'},{c:'#b39ddb',t:'VIIRS S-NPP (375 m)'},{c:'#f2c063',t:vi?'Hài hòa + CI 90%':'Harmonized + 90% CI',w:3}],P.l,16)}
+  </svg>
+  <div style="font-size:12px;color:var(--dim);line-height:1.55;margin-top:6px">${vi
+    ?`Nếu <b style="color:#ff9a7a">ghép thô</b> (MODIS trước 2012, VIIRS sau 2012), số điểm cháy <b>nhảy ×${jump.toFixed(1).replace('.',',')}</b> từ 2011 sang 2012, chỉ vì đổi cảm biến chứ không phải cháy tăng. Sau hài hòa, 2011→2012 chỉ còn thay đổi <b>${hj>=0?'+':''}${hj.toFixed(0)}%</b>. Từ 2012 đường hài hòa trùng với VIIRS S-NPP (thang chuẩn); 2003–2011 là MODIS-Aqua quy đổi, dải màu là khoảng tin cậy 90% (kiểm chứng chéo bỏ-một-năm).`
+    :`A <b style="color:#ff9a7a">naive splice</b> (MODIS before 2012, VIIRS after) jumps <b>×${jump.toFixed(1)}</b> from 2011 to 2012 purely from the sensor change. After harmonization the 2011→2012 change is <b>${hj>=0?'+':''}${hj.toFixed(0)}%</b>. From 2012 the harmonized line equals VIIRS S-NPP (reference scale); 2003–2011 is converted MODIS-Aqua with a 90% CI band (leave-one-year-out).`}</div>`;
+}
+function overlapHTML(){
+  const vi=lang==='vi';
+  if(!OVL){loadEvid().then(()=>{if(anaTab==='chart'&&$('#anaModal').classList.contains('open'))renderAnalytics()});return ''}
+  if(!OVL.months?.length)return '';
+  const W=920,H=270,P={l:58,r:16,t:50,b:28},n=OVL.months.length,ix=s=>OVL.months.indexOf(s);
+  const x=d3.scaleLinear().domain([0,n-1]).range([P.l,W-P.r]),y=d3.scaleLinear().domain([0,d3.max([...OVL.V,...OVL.P])*1.08]).range([H-P.b,P.t]);
+  const ln=a=>d3.line().x((_,i)=>x(i)).y(v=>y(v))(a);
+  const per=[['2012-02','2017-12',vi?'Huấn luyện':'Train','rgba(230,213,176,.04)'],['2018-01','2021-12',vi?'Kiểm tra (mô hình chưa thấy)':'Test (unseen)','rgba(100,181,246,.09)'],['2022-01',OVL.months[n-1],vi?'Aqua trôi quỹ đạo':'Aqua orbit drift','rgba(226,72,42,.08)']];
+  const st=(a,b)=>{let sv=0,sp=0,i0=ix(a),i1=ix(b);for(let i=i0;i<=i1;i++){sv+=OVL.V[i];sp+=OVL.P[i]}return (sp/sv-1)*100};
+  const rects=per.map(([a,b,t,c])=>{const x0=x(ix(a)),x1=x(ix(b));const bi=st(a,b);return `<rect x="${x0}" y="${P.t-6}" width="${x1-x0}" height="${H-P.b-P.t+6}" fill="${c}"/><text x="${x0+6}" y="${P.t+8}" fill="#e6d5b0" font-size="11">${t} · bias ${bi>=0?'+':''}${bi.toFixed(1).replace('.',vi?',':'.')}%</text>`}).join('');
+  const yt=d3.range(2012,+OVL.months[n-1].slice(0,4)+1,2);
+  return `<div class="lab" style="margin-top:14px">${vi?'Kiểm chứng trên giai đoạn hai cảm biến cùng bay · cả nước · theo tháng':'Validation on the sensor-overlap period · Vietnam · monthly'}</div>
+  <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:rgba(255,255,255,.02);border-radius:10px">${rects}
+    <path d="${ln(OVL.V)}" fill="none" stroke="#b39ddb" stroke-width="1.6"/>
+    <path d="${ln(OVL.P)}" fill="none" stroke="#f2c063" stroke-width="1.6" stroke-dasharray="4 3"/>
+    ${yt.map(t=>`<text x="${x(ix(t+'-01')<0?0:ix(t+'-01'))}" y="${H-8}" fill="#e6d5b0" font-size="11" text-anchor="middle">${t}</text>`).join('')}
+    <text x="${P.l-6}" y="${y(y.domain()[1]/1.08)+4}" fill="#e6d5b0" font-size="11" text-anchor="end">${fmt(y.domain()[1]/1.08)}</text>
+    ${svgLegend([{c:'#b39ddb',t:vi?'VIIRS S-NPP đo thật':'VIIRS S-NPP observed'},{c:'#f2c063',t:vi?'Dự đoán chỉ từ MODIS-Aqua':'Predicted from MODIS-Aqua only',d:1}],P.l,16)}
+  </svg>
+  <div style="font-size:12px;color:var(--dim);line-height:1.55;margin-top:6px">${vi
+    ?`Mô hình chỉ được học trên 2012–2017, rồi dự đoán số VIIRS <b>chỉ từ dữ liệu MODIS-Aqua</b>. Trên 2018–2021 (chưa từng thấy) hai đường gần như trùng nhau: đây là bằng chứng phép quy đổi dùng được cho giai đoạn 2003–2011 khi chỉ có MODIS. Từ 2022 Aqua trôi quỹ đạo nên dự đoán lệch lên, vì vậy chuỗi hài hòa dùng VIIRS đo thật cho giai đoạn này.`
+    :`The model is trained on 2012–2017 only, then predicts VIIRS counts <b>from MODIS-Aqua alone</b>. On the unseen 2018–2021 test the two lines nearly coincide, which supports using the conversion for 2003–2011 when only MODIS exists. From 2022 Aqua drifts, so predictions run high; the harmonized series uses observed VIIRS there.`}</div>`;
+}
+function renderAnalytics(){
+  const selEl=$('#anaProv');
+  if(!selEl.options.length&&provs){
+    selEl.innerHTML=`<option value="-1">${lang==='vi'?'Cả nước (Việt Nam)':'National (Vietnam)'}</option>`+
+      provs.map((f,i)=>`<option value="${i}">${f.properties.shapeName}</option>`).sort((a,b)=>0).join('');
+    selEl.value=String(selP>=0?selP:-1);
+  }
+  const pIdx=+selEl.value, rows=getSeries(pIdx), body=$('#anaBody');
+  $$('#anaTabs button').forEach(b=>b.classList.toggle('act',b.dataset.tab===anaTab));
+  if(anaTab==='cal'){
+    const byM=d3.range(1,13).map(m=>{
+      const vals=rows.filter(r=>r.m===m&&!r.partial).map(r=>r.val).sort(d3.ascending);
+      return {med:d3.quantile(vals,.5)||0,p25:d3.quantile(vals,.25)||0,p75:d3.quantile(vals,.75)||0};
+    });
+    const cur=rows.find(r=>r.y===sel.y&&r.m===sel.m)||rows.at(-1);
+    const sameM=rows.filter(r=>r.m===cur.m).slice().sort((a,b)=>b.val-a.val);
+    const rank=sameM.findIndex(r=>r.y===cur.y)+1, st=byM[cur.m-1];
+    const anom=cur.val>st.p75?(lang==='vi'?'Cao hơn bình thường':'Above normal'):cur.val<st.p25?(lang==='vi'?'Thấp hơn bình thường':'Below normal'):(lang==='vi'?'Bình thường':'Normal');
+    const mx=Math.max(1,d3.max(rows,r=>r.val));
+    let htmlStr=`<div class="cards3">
+      <div class="kcard"><span>${L().mF(cur.m,cur.y)}</span><b>${fmt(cur.val)}</b><span>${cur.src.startsWith('modeled')?`90% CI: ${fmt(cur.cl)}–${fmt(cur.ch)}`:(lang==='vi'?'Quan sát VIIRS':'Observed VIIRS')}</span></div>
+      <div class="kcard"><span>${lang==='vi'?'Trung vị lịch sử (p25–p75)':'Historical median (p25–p75)'}</span><b>${fmt(st.med)}</b><span>${fmt(st.p25)} – ${fmt(st.p75)}</span></div>
+      <div class="kcard"><span>${lang==='vi'?'Xếp hạng & Anomaly':'Rank & Anomaly'}</span><b>#${rank} / ${sameM.length}</b><span>${anom}</span></div>
+    </div>
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span style="font-size:12px;color:var(--dim)">${lang==='vi'?'Rê chuột lên từng ô để xem trung vị, p25–p75 và xếp hạng; bấm để nhảy tới tháng đó.':'Hover any cell for median, p25–p75 & rank; click to jump to that month.'}</span>
+      <button class="pill" id="dlCalCsv">⬇ ${lang==='vi'?'Tải CSV lịch':'Download Calendar CSV'}</button>
+    </div>
+    <div class="calgrid"><div></div>${d3.range(12).map(i=>`<div class="calhdr">${L().mS(i)}</div>`).join('')}`;
+    for(let y=Y0;y<=NOW.y;y++){
+      htmlStr+=`<div class="calyr">${y}</div>`;
+      for(let m=1;m<=12;m++){
+        const r=rows.find(x=>x.y===y&&x.m===m);
+        if(!r){htmlStr+=`<div></div>`;continue}
+        const t=Math.pow(r.val/mx,.55), col=ramp(t), rk=rows.filter(x=>x.m===m).sort((a,b)=>b.val-a.val).findIndex(x=>x.y===y)+1;
+        const stM=byM[m-1], pct=stM.med>0?Math.round((r.val-stM.med)/stM.med*100):0;
+        const title=`${L().mF(m,y)}: ${fmt(r.val)} (${pct>=0?'+':''}${pct}% vs median ${fmt(stM.med)}, p25–p75: ${fmt(stM.p25)}–${fmt(stM.p75)}, #${rk})`;
+        htmlStr+=`<div class="calcell" data-cy="${y}" data-cm="${m}" title="${title}" style="background:${col};color:${t>.55?'#fff':'#09112c'}">${r.val>=1000?(r.val/1000).toFixed(1)+'k':Math.round(r.val)}${r.partial?'*':''}</div>`;
+      }
+    }
+    htmlStr+=`</div>`; body.innerHTML=htmlStr;
+    body.querySelectorAll('.calcell').forEach(el=>el.onclick=()=>{sel.y=+el.dataset.cy;sel.m=+el.dataset.cm;mode='month';clampSel();applyLang();update(true);$('#anaModal').classList.remove('open')});
+    $('#dlCalCsv').onclick=()=>{
+      const csv=['ym,harmonized,ci_low,ci_high,source'].concat(rows.map(r=>`${r.ym},${r.val.toFixed(1)},${r.cl.toFixed(1)},${r.ch.toFixed(1)},${r.src}`)).join('\n');
+      const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`harmonized_calendar_${pIdx<0?'vietnam':provs[pIdx].properties.id}.csv`;a.click();
+    };
+  } else if(anaTab==='chart'){
+    const W=920,H=220,P={l:52,r:16,t:16,b:28};
+    const x=d3.scaleLinear().domain([0,rows.length-1]).range([P.l,W-P.r]);
+    const yMax=Math.max(1,d3.max(rows,r=>r.ch));
+    const y=d3.scaleLinear().domain([0,yMax*1.08]).range([H-P.b,P.t]);
+    const area=d3.area().x((_,i)=>x(i)).y0(r=>y(r.cl)).y1(r=>y(r.ch))(rows);
+    const line=d3.line().x((_,i)=>x(i)).y(r=>y(r.val))(rows);
+    // Yearly before/after for national
+    const yrs=d3.range(Y0,NOW.y);
+    const yData=yrs.map(yr=>{
+      const r=rows.filter(d=>d.y===yr);
+      return {yr,h:d3.sum(r,d=>d.val)};
+    });
+    const x2=d3.scaleLinear().domain([Y0,NOW.y-1]).range([P.l,W-P.r]);
+    const y2=d3.scaleLinear().domain([0,Math.max(1,d3.max(yData,d=>d.h)*1.1)]).range([H-P.b,P.t]);
+    const line2=d3.line().x(d=>x2(d.yr)).y(d=>y2(d.h))(yData);
+    body.innerHTML=`
+      <div class="lab">${lang==='vi'?'Chuỗi tháng Harmonized & Khoảng tin cậy 90% (2003–2026)':'Monthly Harmonized Series & 90% CI (2003–2026)'}</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:rgba(255,255,255,.02);border-radius:10px">
+        <path d="${area}" fill="rgba(240,138,52,0.22)"/>
+        <path d="${line}" fill="none" stroke="#f08a34" stroke-width="1.6"/>
+        <text x="${P.l}" y="${P.t+10}" fill="#e6d5b0" font-size="11">${fmt(yMax)}</text>
+        <text x="${P.l}" y="${H-8}" fill="#e6d5b0" font-size="11">2003</text>
+        <text x="${W-42}" y="${H-8}" fill="#e6d5b0" font-size="11">2026</text>
+      </svg>
+      <div class="lab">${lang==='vi'?'Tổng hợp theo năm (2003–2025, thang VIIRS nhất quán)':'Annual Harmonized Trend (2003–2025, VIIRS-equivalent)'}</div>
+      <svg viewBox="0 0 ${W} ${H}" style="width:100%;background:rgba(255,255,255,.02);border-radius:10px">
+        <path d="${line2}" fill="none" stroke="#64b5f6" stroke-width="2"/>
+        ${yData.map(d=>`<circle cx="${x2(d.yr)}" cy="${y2(d.h)}" r="3.2" fill="#fff3da"><title>${d.yr}: ${fmt(d.h)}</title></circle>`).join('')}
+        <text x="${P.l}" y="${H-8}" fill="#e6d5b0" font-size="11">2003</text>
+        <text x="${W-42}" y="${H-8}" fill="#e6d5b0" font-size="11">2025</text>
+      </svg>${beforeAfterHTML()}${overlapHTML()}`;
+  } else {
+    body.innerHTML=`
+      <div class="rform">
+        <div><div class="lab">${lang==='vi'?'Vĩ độ (°N)':'Latitude (°N)'}</div><input id="rLat" class="rinp mono" value="14.0"></div>
+        <div><div class="lab">${lang==='vi'?'Kinh độ (°E)':'Longitude (°E)'}</div><input id="rLon" class="rinp mono" value="108.0"></div>
+        <div><div class="lab">${lang==='vi'?'Bán kính (km)':'Radius (km)'}</div><input id="rRad" class="rinp mono" value="50"></div>
+        <div><div class="lab">${lang==='vi'?'Từ ngày':'From date'}</div><input id="rFrom" type="date" class="rinp mono" value="2026-03-01"></div>
+        <div><div class="lab">${lang==='vi'?'Đến ngày':'To date'}</div><input id="rTo" type="date" class="rinp mono" value="2026-03-31"></div>
+        <button class="pill" id="rRun">${lang==='vi'?'Lọc & Đếm':'Filter & Count'}</button>
+      </div>
+      <div id="rOut" style="font-size:13px;color:var(--dim)">${lang==='vi'?'Nhập tọa độ, bán kính và khoảng ngày để trích xuất các điểm cháy chuẩn và tải CSV.':'Enter coordinates, radius and date range to query detections and export CSV.'}</div>`;
+    $('#rRun').onclick=async()=>{
+      const lat=+$('#rLat').value,lon=+$('#rLon').value,rad=+$('#rRad').value,f=$('#rFrom').value,t=$('#rTo').value;
+      const y0=+f.slice(0,4),y1=+t.slice(0,4),out=$('#rOut');
+      out.textContent=lang==='vi'?'Đang tải dữ liệu năm...':'Loading yearly binary data...';
+      await Promise.all(d3.range(y0,y1+1).map(yr=>new Promise(res=>{
+        if(DAYS.has(yr)&&DAYS.get(yr)!=='loading')return res();
+        loadDays(yr); const iv=setInterval(()=>{if(DAYS.has(yr)&&DAYS.get(yr)!=='loading'){clearInterval(iv);res()}},80);
+      })));
+      const hits=[]; const R_earth=6371;
+      for(let yr=y0;yr<=y1;yr++){
+        const D=DAYS.get(yr); if(!D||!D.n)continue;
+        const dA=yr===y0?doy(y0,+f.slice(5,7),+f.slice(8,10))*1440:0;
+        const dB=yr===y1?(doy(y1,+t.slice(5,7),+t.slice(8,10))+1)*1440:400*1440;
+        for(let i=lowerB(D.t,dA),e=lowerB(D.t,dB);i<e;i++){
+          if(!(D.sc[i]&128))continue;
+          const la=D.la[i]/4000+8, lo=D.lo[i]/4000+102;
+          const dLat=(la-lat)*Math.PI/180, dLon=(lo-lon)*Math.PI/180;
+          const a=Math.sin(dLat/2)**2+Math.cos(lat*Math.PI/180)*Math.cos(la*Math.PI/180)*Math.sin(dLon/2)**2;
+          const dist=2*R_earth*Math.asin(Math.sqrt(a));
+          if(dist<=rad){
+            const day=Math.floor(D.t[i]/1440), m=D.t[i]%1440, dt=new Date(Date.UTC(yr,0,1)+day*864e5);
+            hits.push({date:dt.toISOString().slice(0,10),time:`${p2(Math.floor(m/60))}:${p2(m%60)}`,lat:la.toFixed(4),lon:lo.toFixed(4),sat:SATN[D.sc[i]&7],frp:(D.fr[i]/10).toFixed(1)});
+          }
+        }
+      }
+      out.innerHTML=`<div><b style="color:#fff3da">${hits.length}</b> ${lang==='vi'?'điểm cháy chuẩn trong bán kính':'reference hotspots within'} ${rad} km (${f} → ${t}).</div>`+
+        (hits.length?`<button class="pill" id="rDl" style="margin-top:8px">⬇ ${lang==='vi'?'Tải CSV vùng này':'Download Region CSV'}</button>`:'');
+      if(hits.length)$('#rDl').onclick=()=>{
+        const csv=['date_vn,time_vn,latitude,longitude,satellite,frp_mw'].concat(hits.map(h=>`${h.date},${h.time},${h.lat},${h.lon},${h.sat},${h.frp}`)).join('\n');
+        const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([csv],{type:'text/csv'}));a.download=`hotspots_${lat}_${lon}_${rad}km_${f}_${t}.csv`;a.click();
+      };
+    };
+  }
+}
+function renderMethod(){
+  if(!EVID){$('#methBody').innerHTML='<p style="color:var(--dim)">…</p>';loadEvid().then(renderMethod);return}
+  const vi=lang==='vi',nf=(v,d=1)=>v==null||isNaN(v)?'–':(+v).toFixed(d).replace('.',vi?',':'.'),pc=v=>(v>=0?'+':'')+nf(v)+'%';
+  const th='style="text-align:right;padding:4px 8px;border-bottom:1px solid var(--line);font-weight:500"',td='style="text-align:right;padding:4px 8px"',tl='style="text-align:left;padding:4px 8px"';
+  const tbl=(head,rows)=>`<div style="overflow-x:auto;margin:6px 0 10px"><table style="border-collapse:collapse;font-size:12px;width:100%"><tr>${head.map((h,k)=>`<th ${k?th:th.replace('right','left')}>${h}</th>`).join('')}</tr>${rows.map(r=>`<tr>${r.map((c,k)=>`<td ${k?td:tl}>${c}</td>`).join('')}</tr>`).join('')}</table></div>`;
+  // 1) so sanh mo hinh tren tap test 2018-2021
+  const MN={A_ty_le_toan_quoc:vi?'A. Một tỉ lệ cả nước':'A. One national ratio',B_ty_le_theo_o_co_ve:vi?'B. Tỉ lệ riêng từng ô (co về)':'B. Per-cell ratio (shrunk)','D_glm_lan_can_alpha0.0001':vi?'<b>D. Poisson GLM + ô lân cận (chọn)</b>':'<b>D. Poisson GLM + neighbours (chosen)</b>'};
+  const vm=(METHOD?.validation_models||[]).filter(r=>MN[r.model]);
+  const t1=vm.length?tbl([vi?'Mô hình':'Model',vi?'Deviance ô ↓':'Cell deviance ↓','R² log ô ↑','Spearman ô ↑',vi?'Bias cả nước':'National bias','MAPE '+(vi?'cả nước':'national'),vi?'Spearman lịch ↑':'Calendar Spearman ↑'],
+    vm.map(r=>[MN[r.model],nf(r.o_poisson_deviance,2),nf(r.o_R2_log1p,3),nf(r.o_spearman_median,3),pc(r['qg_bias_%']),nf(r['qg_MAPE_%'])+'%',nf(r.lich_spearman_thang_tb,3)])):'';
+  const dr=(METHOD?.validation_models||[]).find(r=>/DRIFT/.test(r.model));
+  // 2) tach theo vung / mua
+  const SN={D:vi?'D (đang dùng)':'D (in use)','D+region':vi?'D + hệ số riêng 6 vùng sinh thái':'D + 6 eco-region slopes','D+season':vi?'D + hệ số riêng mùa khô/mưa':'D + dry/wet season slopes','D+region+season':vi?'D + vùng + mùa':'D + region + season'};
+  const sr=(EVID.stratified||[]),st=sr.filter(r=>r.tap==='test_2018_2021'),sd=k=>sr.find(r=>r.tap==='drift_2022+'&&r.model===k);
+  const t2=st.length?tbl([vi?'Biến thể':'Variant',vi?'Deviance ô ↓':'Cell deviance ↓','R² log ô',vi?'Bias test':'Test bias',vi?'Spearman lịch':'Calendar Spearman',vi?'Bias 2022+':'2022+ bias'],
+    st.map(r=>[SN[r.model]||r.model,nf(r.o_poisson_deviance,3),nf(r.o_R2_log1p,3),pc(r['qg_bias_%']),nf(r.lich_spearman_thang_tb,3),pc(sd(r.model)?.['qg_bias_%'])])):'';
+  const d0=st.find(r=>r.model==='D'),dB=st.reduce((a,r)=>r.o_poisson_deviance<a.o_poisson_deviance?r:a,st[0]||{});
+  const gain=d0&&dB?(1-dB.o_poisson_deviance/d0.o_poisson_deviance)*100:NaN;
+  const rb=d0?['dong_nam_bo','dbsh','tay_nguyen','dbscl'].map(k=>`${({dong_nam_bo:vi?'Đông Nam Bộ':'Southeast',dbsh:vi?'ĐB sông Hồng':'Red River Delta',tay_nguyen:vi?'Tây Nguyên':'Central Highlands',dbscl:vi?'ĐBSCL':'Mekong Delta'})[k]} ${pc(d0[`bias_${k}_%`])}`).join(', '):'';
+  // 3) back-test nguon tinh
+  const bt=(EVID.static_backtest||[]),bA=bt.find(r=>r.quy_tac==='A_hoac_B'&&r.cam_bien==='ALL'),bM=bt.find(r=>r.quy_tac==='A_hoac_B'&&r.cam_bien==='MODIS'),bV=bt.find(r=>r.quy_tac==='A_hoac_B'&&r.cam_bien==='VIIRS');
+  const t3=bt.length?tbl([vi?'Quy tắc':'Rule',vi?'Cảm biến':'Sensor',vi?'Bắt được nguồn tĩnh ↑':'Static caught ↑',vi?'Loại nhầm cháy thật ↓':'Real fires removed ↓',vi?'Số điểm tĩnh':'Static pts'],
+    bt.filter(r=>r.cam_bien==='ALL'||r.quy_tac==='A_hoac_B').map(r=>[({A_nhan_NASA_100m:vi?'A. Nhãn NASA, ô 100 m':'A. NASA label, 100 m',B_lien_tuc_1km:vi?'B. Cháy liên tục, ô 1 km':'B. Persistent, 1 km',A_hoac_B:vi?'<b>A hoặc B (đang dùng)</b>':'<b>A or B (in use)</b>'})[r.quy_tac],r.cam_bien,nf(r['recall_%'])+'%',nf(r['loai_nham_chay_that_%'],2)+'%',fmt(r.n_type2)])):'';
+  const h=META||{}, fs=h.filter_stats||{};
+  $('#methBody').innerHTML=vi?`
+    <p><b>1. Vì sao phải hài hòa.</b> Pixel VIIRS 375 m so với MODIS ~1 km: VIIRS thấy đám cháy nhỏ hơn và một đám cháy có thể thành nhiều điểm. Giờ bay và số vệ tinh cũng khác. Ghép thẳng hai chuỗi thì số điểm nhảy vọt giả tạo từ 2012 (xem tab <i>Biểu đồ chuỗi</i>).</p>
+    <p><b>2. Thang chuẩn và cảm biến.</b> Đích là <b>một vệ tinh VIIRS S-NPP</b> (không cộng 3 vệ tinh VIIRS vì sẽ đếm trùng và tạo bậc thang khi NOAA-20/21 lên quỹ đạo). Nguồn lịch sử là <b>MODIS-Aqua</b> vì bay ~13:30, cùng giờ S-NPP; Terra bị loại vì tỉ lệ Terra/VIIRS trôi từ ~16 xuống ~7,5. Từ 11/2026 FIRMS ngừng S-NPP nên dùng NOAA-20 × <b>${nf(h.noaa20_to_snpp_factor,3)}</b>.</p>
+    <p><b>3. Tiền xử lý.</b> Bỏ điểm độ tin cậy thấp ở cả hai cảm biến (MODIS &lt; 30, VIIRS “l”: ${fmt(fs.bo_do_tin_cay_thap||0)} điểm), bỏ điểm trùng, đổi giờ UTC → giờ Việt Nam, rồi lọc nguồn nhiệt tĩnh (mục 6). Gộp lưới <b>0,25° × tháng</b> để học quy đổi.</p>
+    <p><b>4. Mô hình quy đổi.</b> <code>log E[VIIRS] = a + b₁·log(M+1) + b₂·[M&gt;0] + b₃·log(M_lân cận+1) + hệ số riêng từng ô</code>, M là số điểm MODIS-Aqua. Học trên <b>2012–2017</b>, kiểm tra trên <b>2018–2021</b> (mô hình chưa thấy), fit cuối 2012–2021 rồi áp cho 2003–2011. So sánh trên tập kiểm tra:</p>${t1}
+    <p style="color:var(--dim);font-size:12px">Ở mức cả nước, mô hình đơn giản cũng khá tốt (MAPE ~16%). GLM thắng rõ ở <b>mức ô</b> (deviance giảm ~9 lần), đó là mức cần cho chọn vùng và bản đồ. Kiểm tra riêng 2022+ cho bias <b>${pc(dr?.['qg_bias_%'])}</b> do Aqua trôi quỹ đạo, nên giai đoạn đó dùng VIIRS đo thật, không dùng dự đoán.</p>
+    <p><b>5. Có cần tách theo lớp phủ / vùng / mùa?</b> Chưa có dữ liệu lớp phủ thật (MCD12Q1) trong dự án, nên chúng tôi kiểm tra bằng đại diện: <b>6 vùng sinh thái</b> (ĐBSCL ~ đốt rơm rạ, Tây Nguyên và miền núi phía Bắc ~ rừng và nương rẫy…) và <b>mùa khô/mưa</b>, cho hệ số quy đổi đổi theo nhóm, cùng tập kiểm tra:</p>${t2}
+    <p style="color:var(--dim);font-size:12px">Tách nhóm chỉ giảm deviance ~${nf(gain,0)}%, bias gần như không đổi và Spearman lịch còn giảm nhẹ. Hệ số riêng từng ô 0,25° đã hấp thụ gần hết khác biệt theo lớp phủ, nên giữ mô hình D (ít tham số hơn). Sai lệch theo vùng còn lại trên tập test: ${rb}. Thêm lớp phủ thật là hướng phát triển tiếp.</p>
+    <p><b>6. Lọc nguồn nhiệt tĩnh</b> (nhà máy, lò, bãi rác…) áp cùng một quy tắc cho dữ liệu archive và NRT: bỏ nhãn NASA <code>type 1/2/3</code>; (A) ô 100 m có ≥ 50% điểm type 2, nới 5×5 (~500 m); (B) ô 1 km cháy liên tục ≥ 8 tháng trong năm, lặp ≥ 3 năm. <b>Back-test:</b> xây mặt nạ chỉ từ dữ liệu đến 2023, che nhãn của dữ liệu 2024+ rồi so với nhãn NASA:</p>${t3}
+    <p style="color:var(--dim);font-size:12px">Bộ lọc bắt <b>${nf(bA?.['recall_%'])}%</b> điểm nguồn tĩnh (VIIRS ${nf(bV?.['recall_%'])}%, MODIS ${nf(bM?.['recall_%'])}% vì pixel 1 km khó khoanh nhà máy) và chỉ loại nhầm <b>${nf(bA?.['loai_nham_chay_that_%'],2)}%</b> điểm cháy thật.</p>
+    <p><b>7. Khoảng tin cậy.</b> 90%, kiểm chứng chéo bỏ-một-năm trên 9 năm (theo năm ${pc((Math.exp(h.ci90_log_ratio_yearly_loyo?.[0]||0)-1)*100)} → ${pc((Math.exp(h.ci90_log_ratio_yearly_loyo?.[1]||0)-1)*100)}); chỉ áp cho số ước tính từ MODIS (2003–01/2012). Số từ 2012 là VIIRS đo thật.</p>
+    <p><b>8. Ngày S-NPP mất dữ liệu (đã bù).</b> S-NPP có nhiều đợt ngừng hoặc bị ẩn dữ liệu do sự cố vệ tinh (chế độ an toàn, lỗi GPS), ví dụ 26/7–10/8/2022, 9–16/7 và 24–31/7/2024, 9–13/3, 28–30/4 và 10–16/7/2026, theo thông báo của NOAA/NASA; từ 02/11/2026 S-NPP ngừng hẳn. Mỗi lượt bay (ngày giờ VN × ngày/đêm) mà S-NPP = 0 trong khi NOAA-20/21 vẫn thấy cháy, hoặc nằm trong đợt sự cố đã công bố, được <b>bù bằng NOAA-20 × ${nf(h.noaa20_to_snpp_factor,3)}</b> (cùng cảm biến VIIRS, cùng quỹ đạo, bay sau ~50 phút; NOAA-21 nếu NOAA-20 trống; trước 2018 dùng Aqua × tỷ lệ của tháng). Hệ số học trên các lượt bay không bị mất. Đã bù <b>${nf(h.snpp_gap_fill?.passes,0)} lượt bay</b> (~<b>${nf(h.snpp_gap_fill?.filled_points,0)} điểm</b>); các ngày này được đánh dấu trên lịch chọn ngày. Số của ngày được bù là ước tính, không phải S-NPP đo trực tiếp.</p>
+    <p><b>9. Hạn chế khác.</b> 14/34 tỉnh ít cháy chưa đạt ngưỡng kiểm chứng riêng (cảnh báo khi xem 2003–2011); khoảng tin cậy năm chỉ từ 9 năm; ~9% giá trị 2003–2011 nằm ở ô MODIS = 0 (dự đoán từ ô lân cận) nên không gắn được vào điểm cụ thể; điểm sát biên giới gán về tỉnh gần nhất; tháng 11/2026 mới có dữ liệu đến <b>${h.data_last_local_date||'–'}</b>.</p>
+    <p style="color:var(--dim)"><b>Nguồn dữ liệu:</b> NASA FIRMS (MODIS Collection 6.1, VIIRS Collection 2 S-NPP / NOAA-20 / NOAA-21), ranh giới 34 tỉnh theo Nghị quyết 202/2025/QH15, OpenStreetMap, NASADEM. Mã tái lập: <code>harmonize.py</code>, <code>test_phan_tang_glm.py</code>, <code>backtest_nguon_tinh.py</code>, <code>export_evidence.py</code>.</p>
+  `:`
+    <p><b>1. Why harmonize.</b> VIIRS pixels are 375 m vs ~1 km for MODIS: VIIRS sees smaller fires and one fire can become several points; overpass times and the number of satellites differ too. Splicing the two series naively creates an artificial jump in 2012 (see the <i>Series</i> tab).</p>
+    <p><b>2. Reference scale and sensors.</b> Target is <b>one VIIRS satellite, S-NPP</b> (summing the three VIIRS satellites would double-count fires and add steps when NOAA-20/21 launched). History comes from <b>MODIS-Aqua</b> (~13:30 overpass, same as S-NPP); Terra is excluded because its ratio to VIIRS drifts from ~16 to ~7.5. FIRMS stopped S-NPP in Nov 2026, so NOAA-20 × <b>${nf(h.noaa20_to_snpp_factor,3)}</b> continues the series.</p>
+    <p><b>3. Pre-processing.</b> Low-confidence detections removed for both sensors (MODIS &lt; 30, VIIRS “l”: ${fmt(fs.bo_do_tin_cay_thap||0)} points), duplicates removed, UTC → Vietnam time, static heat sources filtered (item 6). Aggregated to a <b>0.25° × month</b> grid to learn the conversion.</p>
+    <p><b>4. Conversion model.</b> <code>log E[VIIRS] = a + b₁·log(M+1) + b₂·[M&gt;0] + b₃·log(M_neighbours+1) + per-cell effect</code>, M = MODIS-Aqua count. Trained on <b>2012–2017</b>, tested on unseen <b>2018–2021</b>, final fit 2012–2021 applied to 2003–2011. Test-set comparison:</p>${t1}
+    <p style="color:var(--dim);font-size:12px">Nationally a simple ratio is already decent (MAPE ~16%); the GLM wins clearly at <b>cell level</b> (deviance ~9× lower), which is what region selection and the map need. A separate 2022+ check gives bias <b>${pc(dr?.['qg_bias_%'])}</b> from Aqua orbit drift, so that period uses observed VIIRS, not predictions.</p>
+    <p><b>5. Stratify by land cover / region / season?</b> No real land-cover layer (MCD12Q1) is available in this project, so we tested proxies: <b>6 eco-regions</b> (Mekong Delta ~ rice-straw burning, Highlands and northern mountains ~ forest and shifting cultivation…) and <b>dry/wet season</b>, letting the conversion slopes vary by group, on the same test set:</p>${t2}
+    <p style="color:var(--dim);font-size:12px">Stratification lowers deviance by only ~${nf(gain,0)}%, bias is unchanged and calendar Spearman drops slightly. The per-cell 0.25° effects already absorb most land-cover differences, so model D (fewer parameters) is kept. Remaining regional test bias: ${rb}. Adding real land cover is future work.</p>
+    <p><b>6. Static heat-source filter</b> (factories, kilns, landfills…), same rule for archive and NRT: drop NASA <code>type 1/2/3</code>; (A) 100 m cells with ≥ 50% type-2 points, dilated 5×5 (~500 m); (B) 1 km cells burning ≥ 8 consecutive months in a year for ≥ 3 years. <b>Back-test:</b> masks built from data up to 2023 only, labels hidden for 2024+ and compared with NASA labels:</p>${t3}
+    <p style="color:var(--dim);font-size:12px">The filter catches <b>${nf(bA?.['recall_%'])}%</b> of static points (VIIRS ${nf(bV?.['recall_%'])}%, MODIS ${nf(bM?.['recall_%'])}% — 1 km pixels are hard to delineate) while removing only <b>${nf(bA?.['loai_nham_chay_that_%'],2)}%</b> of real fires.</p>
+    <p><b>7. Uncertainty.</b> 90% intervals from leave-one-year-out over 9 years (yearly ${pc((Math.exp(h.ci90_log_ratio_yearly_loyo?.[0]||0)-1)*100)} → ${pc((Math.exp(h.ci90_log_ratio_yearly_loyo?.[1]||0)-1)*100)}), applied only to MODIS-derived values (2003–Jan 2012). From 2012 values are observed VIIRS.</p>
+    <p><b>8. S-NPP outage days (gap-filled).</b> S-NPP had several outages or hidden data due to spacecraft anomalies (safe mode, GPS errors), e.g. 26 Jul–10 Aug 2022, 9–16 and 24–31 Jul 2024, 9–13 Mar, 28–30 Apr and 10–16 Jul 2026, per NOAA/NASA notices; S-NPP ended on 2 Nov 2026. Each overpass (local date × day/night) where S-NPP = 0 while NOAA-20/21 still detect fires, or that falls inside a published outage, is <b>filled with NOAA-20 × ${nf(h.noaa20_to_snpp_factor,3)}</b> (same VIIRS sensor and orbit, ~50 min apart; NOAA-21 if NOAA-20 is empty; Aqua × monthly ratio before 2018). The factor is learned on non-outage overpasses. Filled <b>${nf(h.snpp_gap_fill?.passes,0)} overpasses</b> (~<b>${nf(h.snpp_gap_fill?.filled_points,0)} pts</b>); these days are flagged in the day picker. Values on filled days are estimates, not direct S-NPP observations.</p>
+    <p><b>9. Other limitations.</b> 14/34 low-fire provinces are below their own validation threshold (warning shown for 2003–2011); yearly CIs rest on 9 years; ~9% of 2003–2011 values sit in cells with MODIS = 0 (predicted from neighbours) and cannot be tied to points; border points go to the nearest province; Nov 2026 is partial through <b>${h.data_last_local_date||'–'}</b>.</p>
+    <p style="color:var(--dim)"><b>Sources:</b> NASA FIRMS (MODIS C6.1, VIIRS C2 S-NPP / NOAA-20 / NOAA-21), 34-province boundaries (Resolution 202/2025/QH15), OpenStreetMap, NASADEM. Reproducible code: <code>harmonize.py</code>, <code>test_phan_tang_glm.py</code>, <code>backtest_nguon_tinh.py</code>, <code>export_evidence.py</code>.</p>
+  `;
+}
+$('#anaBtn').onclick=()=>{renderAnalytics();$('#anaModal').classList.add('open')};
+$('#anaClose').onclick=()=>$('#anaModal').classList.remove('open');
+$('#anaTabs').onclick=e=>{const t=e.target.dataset.tab;if(!t)return;anaTab=t;renderAnalytics()};
+$('#anaProv').onchange=renderAnalytics;
+$('#methBtn').onclick=()=>{renderMethod();$('#methModal').classList.add('open')};
+$('#methClose').onclick=()=>$('#methModal').classList.remove('open');
+$('#palettes').onclick=e=>{const p=e.target.dataset.pal;if(!p||p===palMode)return;palMode=p;
+  $('#legend .g').style.background=p==='cb'?'linear-gradient(0deg,#1e3a5f,#3b6ea5 28%,#7c878e 52%,#c9a93b 76%,#fde725)':'linear-gradient(0deg,rgba(230,213,176,.14),#f2c063 28%,#f08a34 52%,#e2482a 76%,#a80f1d)';
+  applyLang();if(S.z===1)swapHeat(true)};
+
+</script>
+</body>
+</html>

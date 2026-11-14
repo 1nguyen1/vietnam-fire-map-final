@@ -1,0 +1,16 @@
+# Du lieu FIRMS goc va ket qua trung gian: qua nang, khong can cho web
+# chi bo thu muc data o goc repo (KHONG phai site/data)
+/data/
+output*/
+*.parquet
+*.zip
+
+# Python
+__pycache__/
+*.pyc
+
+# Vercel / he dieu hanh
+.vercel/
+Thumbs.db
+.DS_Store
+desktop.ini

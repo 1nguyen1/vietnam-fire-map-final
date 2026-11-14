@@ -1,0 +1,174 @@
+{
+  "meta": {
+    "contract_version": "1.2",
+    "language": "en",
+    "status": "draft"
+  },
+  "app": {
+    "title": "Fire Calendar: Central Highlands & Northwest Vietnam",
+    "subtitle": "25 years of NASA satellite hotspot detections, harmonized across MODIS and VIIRS into one consistent record."
+  },
+  "controls": {
+    "province_label": "Province",
+    "landcover_label": "Land cover",
+    "landcover_options": {
+      "all": "All land",
+      "forest": "Forest",
+      "agri": "Agriculture",
+      "other": "Other"
+    },
+    "download_csv": "Download CSV"
+  },
+  "calendar": {
+    "title": "Monthly hotspot calendar",
+    "legend_title": "Hotspots per month (VIIRS-equivalent)",
+    "tooltip": "{province} – {month_name} {year}: {value} hotspots ({pct}% vs. typical, {anomaly})"
+  },
+  "months": [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December"
+  ],
+  "months_short": [
+    "Jan",
+    "Feb",
+    "Mar",
+    "Apr",
+    "May",
+    "Jun",
+    "Jul",
+    "Aug",
+    "Sep",
+    "Oct",
+    "Nov",
+    "Dec"
+  ],
+  "anomaly": {
+    "title": "Compared with a typical year",
+    "classes": {
+      "below_normal": "Below normal",
+      "normal": "Normal",
+      "above_normal": "Above normal",
+      "insufficient_data": "Insufficient data"
+    },
+    "explanation": "\"Normal\" is the middle half of all values recorded for the same month, province and land cover from 2003 to 2025. Months above that range are flagged as above normal."
+  },
+  "season": {
+    "classes": {
+      "high": "Peak fire season",
+      "medium": "Shoulder season",
+      "low": "Low season"
+    }
+  },
+  "about": {
+    "sections": [
+      {
+        "id": "problem",
+        "heading": "Why this tool",
+        "body": "Every dry season, the Central Highlands and Northwest Vietnam see many forest fires and agricultural burns. Remote, hilly terrain slows detection and response, so knowing when and where burning usually peaks helps forest rangers plan patrols and resources."
+      },
+      {
+        "id": "data",
+        "heading": "What the data is",
+        "body": "NASA satellites detect hotspots: image pixels that are unusually hot, usually because of burning. MODIS has recorded hotspots since 2000; VIIRS, a newer and more detailed sensor, since 2012."
+      },
+      {
+        "id": "method",
+        "heading": "How we harmonized the record",
+        "body": "VIIRS detects many more hotspots than MODIS over the same area. Using 2012–2026, when both sensors operated, we learned how MODIS counts translate into VIIRS counts, separately for forest and agricultural land, and converted the whole record to one VIIRS-equivalent scale."
+      },
+      {
+        "id": "patrol",
+        "heading": "How the patrol priority map works",
+        "body": "For each 1 km square we counted in how many years (2012–2025) VIIRS detected at least one hotspot in a given month. We then estimated ground access from the distance to the nearest vehicle road in OpenStreetMap and the mean terrain slope from NASADEM. Places that burn often and are hard to reach are marked high priority, so rangers can position people and equipment there before the peak month."
+      }
+    ]
+  },
+  "data_sources": [
+    {
+      "name": "MODIS Collection 6.1 Active Fire",
+      "provider": "NASA FIRMS",
+      "product": "MCD14ML / MCD14DL",
+      "period": "Nov 2000 – present",
+      "url": "https://firms.modaps.eosdis.nasa.gov/"
+    },
+    {
+      "name": "VIIRS 375 m Active Fire, Collection 2",
+      "provider": "NASA FIRMS",
+      "product": "VNP14IMG (S-NPP), VJ114IMG (NOAA-20), VJ214IMG (NOAA-21)",
+      "period": "S-NPP Jan 2012 – Nov 2026; NOAA-20 Apr 2018 – present; NOAA-21 Mar 2023 – present",
+      "url": "https://www.earthdata.nasa.gov/data/instruments/viirs/viirs-i-band-375-m-active-fire-data"
+    },
+    {
+      "name": "MODIS Land Cover Type",
+      "provider": "NASA LP DAAC",
+      "product": "MCD12Q1 v6.1 (LC_Type1, IGBP)",
+      "period": "2001 – latest available year",
+      "url": "https://doi.org/10.5067/MODIS/MCD12Q1.061"
+    },
+    {
+      "name": "Province boundaries",
+      "provider": "GADM",
+      "product": "GADM 4.1, level 1",
+      "period": "Pre-2025 administrative boundaries",
+      "url": "https://gadm.org/"
+    },
+    {
+      "name": "OpenStreetMap roads",
+      "provider": "OpenStreetMap contributors (Geofabrik extract)",
+      "product": "gis_osm_roads_free_1",
+      "period": "Snapshot of November 2026",
+      "url": "https://download.geofabrik.de/asia/vietnam.html"
+    },
+    {
+      "name": "NASADEM elevation",
+      "provider": "NASA / USGS (via Google Earth Engine)",
+      "product": "NASADEM_HGT v001, 30 m",
+      "period": "Static (SRTM 2000, reprocessed)",
+      "url": "https://lpdaac.usgs.gov/products/nasadem_hgtv001/"
+    }
+  ],
+  "limitations": [
+    "Satellites cannot see through clouds, so hotspots in cloudy months are undercounted.",
+    "A hotspot is a hot pixel, not a single fire: one large fire can produce many hotspots.",
+    "Land cover comes from a 500 m global map and may misclassify some local forest types.",
+    "Access is an estimate: OpenStreetMap often misses forest tracks and farm roads, so some places marked moderate may be easier to reach in reality."
+  ],
+  "ai_disclosure": "DRAFT – team to confirm. AI assistants were used for planning, drafting code and editing text. All AI-assisted outputs were reviewed and tested by team members.",
+  "footer": "NASA Space Apps Challenge 2026 – Ho Chi Minh City local event. Data: NASA FIRMS, NASA LP DAAC, GADM.",
+  "patrol": {
+    "title": "Patrol priority map",
+    "subtitle": "Where hotspots recur in the selected month, and how hard those places are to reach.",
+    "month_label": "Month",
+    "layer_toggle": "Show patrol priority",
+    "filter_hard_only": "Only hard-to-reach cells",
+    "legend_title": "Patrol priority",
+    "classes": {
+      "high": "High priority",
+      "medium": "Medium priority",
+      "low": "Low priority"
+    },
+    "access_title": "Ground access",
+    "access_classes": {
+      "easy": "Easy to reach",
+      "medium": "Moderate",
+      "hard": "Hard to reach",
+      "unknown": "Not assessed"
+    },
+    "popup": "Hotspots in {years} of 14 years ({month_name}, 2012–2025). Access: {access}. Nearest vehicle road ≈ {dist_km} km (estimate). Mean slope {slope}°.",
+    "popup_unknown": "Hotspots in {years} of 14 years ({month_name}, 2012–2025). Access: not assessed.",
+    "directions_button": "Directions (Google Maps)",
+    "empty_state": "No recurring hotspots this month.",
+    "explanation": "Each square is about 1 km. Priority is high when hotspots appeared in at least half of the years 2012–2025 for this month and the place is hard to reach: steep terrain, or far from vehicle roads on moderately steep ground. Access uses OpenStreetMap roads and NASADEM slope, so it is an estimate.",
+    "no_data": "Patrol map not available for this province yet."
+  }
+}

@@ -1,0 +1,60 @@
+{
+  "created": "2026-11-14 20:26",
+  "data_last_local_date": "2026-11-12",
+  "target_scale": "VIIRS S-NPP 375 m equivalent (single satellite)",
+  "grid_res_deg": 0.25,
+  "start_year": 2003,
+  "drop_low_conf": true,
+  "filter_stats": {
+    "tong_ban_dau": 2150070,
+    "bo_type_1_2_3": 58223,
+    "o_100m_nha_may_nhan_NASA": 13363,
+    "o_1km_quy_tac_lien_tuc": 46,
+    "bo_them_do_mat_na_nhan_NASA": 28876,
+    "bo_them_do_quy_tac_lien_tuc": 79,
+    "trong_do_NRT_bi_loai": 2703,
+    "bo_do_tin_cay_thap": 152650,
+    "con_lai": 1902718,
+    "bo_diem_trung": 73,
+    "bo_truoc_START_YEAR": 7524
+  },
+  "noaa20_to_snpp_factor": 0.9914280832098574,
+  "noaa20_factor_months_used": 103,
+  "noaa21_to_snpp_factor": 1.038579705838657,
+  "snpp_gap_fill": {
+    "passes": 178,
+    "filled_points": 7441.80029296875,
+    "by_reason": {
+      "A_EMPTY": 98,
+      "official": 80
+    },
+    "rule": "luot bay (ngay VN x ngay/dem): S-NPP=0 va tham chieu >= 5, hoac S-NPP < 30% NOAA-20 (NOAA-20 >= 1000000000), hoac nam trong dot mat du lieu NOAA/NASA cong bo; bu bang NOAA-20 x c_n20 (NOAA-21 x c_n21, truoc 2018 Aqua x ty le thang)"
+  },
+  "chosen_model": "D_glm_lan_can_alpha0.0001",
+  "final_fit_period": [
+    "2012-02",
+    "2021-12"
+  ],
+  "glm_coef_logM_indM_logMnb": [
+    0.6186997919031192,
+    0.45910464023078906,
+    0.4665194289193797
+  ],
+  "ci90_log_ratio_monthly_loyo": [
+    -0.4043538570213845,
+    0.15868314409353773
+  ],
+  "ci90_log_ratio_yearly_loyo": [
+    -0.05801897906309918,
+    0.05547463554478652
+  ],
+  "n_loyo_years": 9,
+  "partial_month": "2026-11",
+  "point_weight_coverage_modeled_period": 0.9101552091371242,
+  "note_point_weights": "Vung tu ve: harmonized = sum(weight) cac diem trong vung. Giai doan 2003-01/2012 chi phu ~91% vi phan du doan o cac o M=0 (nhung M_nb>0) khong co diem Aqua nao de gan trong so. So theo o/tinh/toan quoc dung grid_monthly (day du).",
+  "outputs": {
+    "hotspots": "D:\\File trong Zalo\\Nasa Handbook\\output Ds2\\code web\\code\\..\\..\\output_fix2\\hotspots_clean.parquet",
+    "grid_monthly": "D:\\File trong Zalo\\Nasa Handbook\\output Ds2\\code web\\code\\..\\..\\output_fix2\\grid_monthly.parquet",
+    "snpp_aqua_2012_2025": "D:\\File trong Zalo\\Nasa Handbook\\output Ds2\\code web\\code\\..\\..\\output_fix2\\hotspots_snpp_aqua_2012_2025.csv.gz"
+  }
+}
