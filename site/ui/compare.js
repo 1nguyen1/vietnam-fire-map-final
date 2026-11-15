@@ -325,8 +325,7 @@
         </div>
         ${lineChart(A, B, gran)}
         <div class="lab">${tx('cal')} · ${tx(gran === 'day' ? 'byDay' : 'byMonth')}</div>
-        ${cal(A, mx, lblA(), CA)}${B ? cal(B, mx, lblB(), CB) : ''}
-        <div style="font-size:12px;color:var(--dim);line-height:1.55">${tx(gran === 'day' ? 'noteDay' : 'noteMonth')}${B ? ' ' + tx('alignNote') : ''}${useLc ? ' ' + tx('lcNote') : ''}</div>`;
+        ${cal(A, mx, lblA(), CA)}${B ? cal(B, mx, lblB(), CB) : ''}`;
       const tag = r => (r.p < 0 ? 'VN' : provs[r.p].properties.id) + (hasLC() && r.lc && r.lc !== 'all' ? '-' + r.lc : '');
       const base = `fire_${tag(C.a)}_${C.a.f}_${C.a.t}` + (B ? `_vs_${tag(C.b)}_${C.b.f}_${C.b.t}` : '');
       q('#cCsv').onclick = () => {
