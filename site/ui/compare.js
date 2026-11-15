@@ -5,12 +5,11 @@
    What it does (index.html's original code is NOT changed):
      - Pick a province (or the whole country) and a date range (from–to)
        → fire chart + fire calendar for that range.
-     - Optionally compare with:
-         · the SAME province over ANOTHER period (default: same period a year earlier), or
-         · ANOTHER province over any period.
+     - Two modes: "View one province" and "Compare two provinces". In compare mode,
+       B can be any province, period and land cover (default: same province,
+       same period last year; B follows A until the user edits B).
      - If ui/landcover.js is present: each series (A, B) gets its own land-cover
-       picker (All / Forest / Cropland / Other) and an extra comparison mode,
-       "other land cover" (same province and period, different land type).
+       picker (All / Forest / Cropland / Other).
      - Summary cards: totals, % difference, peak day/month, mean.
      - Download CSV (data for both series) and PNG (chart, calendar).
 
@@ -35,13 +34,14 @@
     const CA = '#f08a34', CB = '#64b5f6';
 
     /* ---------- Text (vi/en) ---------- */
-    Object.assign(T.vi, { tabCmp: 'So sánh khoảng thời gian' });
-    Object.assign(T.en, { tabCmp: 'Compare periods' });
+    // Tab name: change these two lines to rename the tab
+    Object.assign(T.vi, { tabCmp: '✦ Tra cứu & So sánh' });
+    Object.assign(T.en, { tabCmp: '✦ Explore & Compare' });
     const TX = {
       vi: {
         a: 'Vùng A', b: 'Vùng B (so sánh)', prov: 'Tỉnh / thành', nat: 'Cả nước (Việt Nam)', from: 'Từ ngày', to: 'Đến ngày',
-        cmpWith: 'So sánh với', none: 'Không so sánh', time: 'Cùng tỉnh, khoảng khác', other: 'Tỉnh khác',
-        cover: 'Lớp phủ khác', lc: 'Lớp phủ đất',
+        cmpWith: 'Chế độ', none: 'Xem 1 tỉnh', cmp: 'So sánh 2 tỉnh', lc: 'Lớp phủ đất',
+        bHint: 'Chọn tỉnh, khoảng thời gian và lớp phủ tuỳ ý. Mặc định: cùng tỉnh, cùng kỳ năm trước.',
         lcNote: 'Lớp phủ đất: theo ngày đếm đúng các điểm cháy nằm trong loại đất đó; theo tháng là số hài hòa × tỷ lệ loại đất của tỉnh trong tháng (ước tính).',
         loading: 'Đang tải dữ liệu…', total: 'Tổng điểm cháy', diff: 'Chênh lệch A so với B', peakD: 'Ngày cao nhất', peakM: 'Tháng cao nhất',
         avgD: 'Trung bình / ngày', avgM: 'Trung bình / tháng', chart: 'Diễn biến điểm cháy', cal: 'Lịch cháy',
@@ -53,8 +53,8 @@
       },
       en: {
         a: 'Region A', b: 'Region B (comparison)', prov: 'Province', nat: 'National (Vietnam)', from: 'From', to: 'To',
-        cmpWith: 'Compare with', none: 'No comparison', time: 'Same province, other period', other: 'Other province',
-        cover: 'Other land cover', lc: 'Land cover',
+        cmpWith: 'Mode', none: 'View one province', cmp: 'Compare two provinces', lc: 'Land cover',
+        bHint: 'Pick any province, period and land cover. Default: same province, same period last year.',
         lcNote: 'Land cover: daily values count only the fire points on that land type; monthly values are harmonized counts × that land type\'s share in the province that month (estimate).',
         loading: 'Loading data…', total: 'Total fire points', diff: 'A vs B', peakD: 'Peak day', peakM: 'Peak month',
         avgD: 'Mean / day', avgM: 'Mean / month', chart: 'Fire activity', cal: 'Fire calendar',
@@ -70,7 +70,19 @@
     /* ---------- Add the tab ---------- */
     const tabBtn = document.createElement('button');
     tabBtn.dataset.tab = 'cmp'; tabBtn.dataset.i = 'tabCmp'; tabBtn.textContent = L().tabCmp;
-    q('#anaTabs').appendChild(tabBtn);
+    const tabs = q('#anaTabs');
+    tabs.insertBefore(tabBtn, tabs.firstChild);          // first in the tab row
+    // Highlight the tab with the orange accent (same color as series A)
+    const st = document.createElement('style');
+    st.textContent =
+      '#anaTabs button[data-tab=cmp]{color:#ffcf9e;background:rgba(240,138,52,.16);box-shadow:inset 0 0 0 1px rgba(240,138,52,.55);font-weight:600}' +
+      '#anaTabs button[data-tab=cmp]:hover{background:rgba(240,138,52,.26);color:#ffe2c4}' +
+      '#anaTabs button[data-tab=cmp].act{background:#f08a34;color:#1b0e04;box-shadow:none}';
+    document.head.appendChild(st);
+    // Every time the Calendar & Charts window opens, go straight to this tab
+    // (to go back to the old behaviour, delete the 2 lines below)
+    anaTab = 'cmp';
+    q('#anaBtn')?.addEventListener('click', () => { anaTab = 'cmp'; }, { capture: true });
 
     /* ---------- State ---------- */
     const iso = (y, m, d) => `${y}-${p2(m)}-${p2(d)}`;
@@ -83,7 +95,7 @@
       const p = selP >= 0 ? selP : -1;
       const f = clampD(iso(sel.y, sel.m, 1)), t = clampD(iso(sel.y, sel.m, dim(sel.y, sel.m)));
       const lc = window.LC268 ? LC268.current() : 'all';
-      C = { a: { p, f, t, lc }, mode: 'time', b: { p, f: shiftYear(f, -1), t: shiftYear(t, -1), lc }, bTouched: false };
+      C = { a: { p, f, t, lc }, mode: 'none', b: { p, f: shiftYear(f, -1), t: shiftYear(t, -1), lc }, bTouched: false };
     }
 
     /* ---------- Data ---------- */
@@ -229,12 +241,14 @@
         .map(([n, i]) => `<option value="${i}"${i === selV ? ' selected' : ''}>${n}</option>`).join('');
     const lcSel = (id, v, dis) => !hasLC() ? '' : `<div><div class="lab">${tx('lc')}</div><select id="${id}" class="rinp"${dis ? ' disabled' : ''}>` +
       ['all', 'forest', 'agri', 'other'].map(k => `<option value="${k}"${k === v ? ' selected' : ''}>${LC268.name(k)}</option>`).join('') + '</select></div>';
-    const otherLc = v => v === 'forest' ? 'agri' : 'forest';
     const dateIn = (id, v, dis) => `<input id="${id}" type="date" class="rinp mono" min="${minD()}" max="${maxD()}" value="${v}"${dis ? ' disabled' : ''}>`;
     function renderCmp() {
       initState();
       const body = q('#anaBody');
       body.innerHTML = `
+        <div><div class="lab" style="margin-bottom:6px">${tx('cmpWith')}</div>
+          <div class="seg" id="cMode" style="max-width:100%;overflow-x:auto">
+            <button data-cm="none">${tx('none')}</button><button data-cm="cmp">${tx('cmp')}</button></div></div>
         <div class="lab" style="color:${CA}">${tx('a')}</div>
         <div class="rform">
           <div><div class="lab">${tx('prov')}</div><select id="cAp" class="rinp">${provOpts(C.a.p)}</select></div>
@@ -242,15 +256,13 @@
           <div><div class="lab">${tx('to')}</div>${dateIn('cAt', C.a.t)}</div>
           ${lcSel('cAl', C.a.lc)}
         </div>
-        <div><div class="lab" style="margin-bottom:6px">${tx('cmpWith')}</div>
-          <div class="seg" id="cMode" style="max-width:100%;overflow-x:auto">
-            <button data-cm="none">${tx('none')}</button><button data-cm="time">${tx('time')}</button><button data-cm="prov">${tx('other')}</button>${hasLC() ? `<button data-cm="cover">${tx('cover')}</button>` : ''}</div></div>
         <div id="cBbox" style="display:${C.mode === 'none' ? 'none' : 'block'}">
-          <div class="lab" style="color:${CB};margin-bottom:6px">${tx('b')}</div>
+          <div class="lab" style="color:${CB};margin-bottom:2px">${tx('b')}</div>
+          <div style="font-size:12px;color:var(--dim);margin-bottom:6px">${tx('bHint')}</div>
           <div class="rform">
-            <div><div class="lab">${tx('prov')}</div><select id="cBp" class="rinp"${C.mode === 'time' || C.mode === 'cover' ? ' disabled' : ''}>${provOpts(C.b.p)}</select></div>
-            <div><div class="lab">${tx('from')}</div>${dateIn('cBf', C.b.f, C.mode === 'cover')}</div>
-            <div><div class="lab">${tx('to')}</div>${dateIn('cBt', C.b.t, C.mode === 'cover')}</div>
+            <div><div class="lab">${tx('prov')}</div><select id="cBp" class="rinp">${provOpts(C.b.p)}</select></div>
+            <div><div class="lab">${tx('from')}</div>${dateIn('cBf', C.b.f)}</div>
+            <div><div class="lab">${tx('to')}</div>${dateIn('cBt', C.b.t)}</div>
             ${lcSel('cBl', C.b.lc)}
           </div>
         </div>
@@ -259,9 +271,7 @@
       q('#cMode').onclick = e => {
         const m = e.target.closest('button')?.dataset.cm; if (!m || m === C.mode) return;
         C.mode = m; C.bTouched = false;
-        if (m === 'time') C.b = { p: C.a.p, f: shiftYear(C.a.f, -1), t: shiftYear(C.a.t, -1), lc: C.a.lc };
-        if (m === 'prov') { const alt = C.a.p === -1 ? 0 : -1; C.b = { p: C.b.p === C.a.p ? alt : C.b.p, f: C.a.f, t: C.a.t, lc: C.a.lc }; }
-        if (m === 'cover') C.b = { p: C.a.p, f: C.a.f, t: C.a.t, lc: otherLc(C.a.lc) };
+        if (m === 'cmp') C.b = { p: C.a.p, f: shiftYear(C.a.f, -1), t: shiftYear(C.a.t, -1), lc: C.a.lc };
         renderCmp();
       };
       const read = () => {
@@ -270,21 +280,16 @@
         if (q('#cAl')) C.a.lc = q('#cAl').value;
         if (C.mode !== 'none') {
           [C.b.f, C.b.t] = fix(q('#cBf').value, q('#cBt').value);
-          C.b.p = C.mode === 'time' || C.mode === 'cover' ? C.a.p : +q('#cBp').value;
+          C.b.p = +q('#cBp').value;
           if (q('#cBl')) C.b.lc = q('#cBl').value;
         }
       };
-      // Until the user edits B themselves, B follows A: "same province" = A's period shifted back 1 year, "other province" = same period as A
+      // Until the user edits B themselves, B follows A: same province, same land cover, same period one year earlier.
+      // Once any B field is changed, B is fully free (province, period, land cover).
       const syncB = () => {
-        if (C.mode === 'cover') {                       // "other land cover": B always = A's province and period, only the land cover differs
-          C.b.p = C.a.p; C.b.f = C.a.f; C.b.t = C.a.t; if (C.b.lc === C.a.lc) C.b.lc = otherLc(C.a.lc);
-          if (q('#cBf')) { q('#cBf').value = C.b.f; q('#cBt').value = C.b.t; q('#cBl').value = C.b.lc; }
-          return;
-        }
         if (C.mode === 'none' || C.bTouched) return;
-        if (C.mode === 'time') { C.b.f = shiftYear(C.a.f, -1); C.b.t = shiftYear(C.a.t, -1); } else { C.b.f = C.a.f; C.b.t = C.a.t; }
-        if (C.mode === 'cover') { if (C.b.lc === C.a.lc) C.b.lc = otherLc(C.a.lc); } else C.b.lc = C.a.lc;
-        if (q('#cBf')) { q('#cBf').value = C.b.f; q('#cBt').value = C.b.t; }
+        C.b = { p: C.a.p, f: shiftYear(C.a.f, -1), t: shiftYear(C.a.t, -1), lc: C.a.lc };
+        if (q('#cBp')) { q('#cBp').value = C.b.p; q('#cBf').value = C.b.f; q('#cBt').value = C.b.t; }
         if (q('#cBl')) q('#cBl').value = C.b.lc;
       };
       ['#cAp', '#cAf', '#cAt', '#cAl', '#cBp', '#cBf', '#cBt', '#cBl'].forEach(s => {
@@ -292,7 +297,6 @@
         el.onchange = () => {
           if (s.startsWith('#cB')) C.bTouched = true;
           read(); syncB();
-          if ((C.mode === 'time' || C.mode === 'cover') && q('#cBp')) q('#cBp').value = C.a.p;
           run();
         };
       });
