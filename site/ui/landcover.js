@@ -78,8 +78,10 @@
       if (y != null) { const v = LC.ovr.get(y)?.get(CK(a, o)); if (v !== undefined) return v; }
       const k = idxOf(a, o); return k < 0 ? 0 : LC.cls[k];
     }
-    const match = l => F === 'forest' ? l === 1 : F === 'agri' ? l === 2 : (l === 0 || l === 3);
-    const shareOf = s => !s ? null : F === 'forest' ? s[0] : F === 'agri' ? s[1] : Math.max(0, 1 - s[0] - s[1]);
+    const matchF = (f, l) => f === 'forest' ? l === 1 : f === 'agri' ? l === 2 : (l === 0 || l === 3);
+    const shareF = (f, s) => !s ? null : f === 'forest' ? s[0] : f === 'agri' ? s[1] : Math.max(0, 1 - s[0] - s[1]);
+    const match = l => matchF(F, l);
+    const shareOf = s => shareF(F, s);
 
     /* ---------- Filter monthly numbers (PV, NAT) ---------- */
     let PV0 = null, NAT0 = null;
@@ -155,7 +157,7 @@
     const origRA = renderAnalytics;
     renderAnalytics = function () {
       origRA();
-      if (F !== 'all') q('#anaBody')?.insertAdjacentHTML('afterbegin',
+      if (F !== 'all' && anaTab !== 'cmp') q('#anaBody')?.insertAdjacentHTML('afterbegin',
         `<div style="font-size:12px;padding:8px 12px;border-radius:10px;background:rgba(156,204,101,.12);color:#c5e1a5">${tx().note[F]} · ${tx().noteTail}</div>`);
     };
 
@@ -224,6 +226,19 @@
       if (q('#anaModal')?.classList.contains('open')) renderAnalytics();
     }
     q('#lcSeg').addEventListener('click', e => { const v = e.target.closest('button')?.dataset.lc; if (v) setFilter(v); });
+
+    /* ---------- API for other modules (e.g. ui/compare.js picks a land cover per series) ---------- */
+    window.LC268 = {
+      load: () => loadLC(),
+      ready: () => !!LC,
+      current: () => F,
+      name: f => tx()[f],
+      pv: () => PV0 || PV,                                                        // unfiltered monthly numbers
+      nat: (y, m) => ((NAT0 || NAT).get(y * 12 + m)?.h) || 0,
+      days: y => daysGet(y),                                                      // unfiltered daily points
+      share: (f, key, ym) => f === 'all' ? 1 : (shareF(f, LC.share[key]?.[ym]) ?? shareF(f, LC.share.VN?.[ym]) ?? 0),
+      keep: (f, a, o, y) => f === 'all' || matchF(f, labelAt(a, o, y))
+    };
 
     // Load the data in the background (small) so tooltips can show land cover even in "All" mode
     setTimeout(() => loadLC().catch(e => console.warn('[landcover] data not loaded yet', e)), 1500);

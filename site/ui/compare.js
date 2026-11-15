@@ -8,6 +8,9 @@
      - Optionally compare with:
          · the SAME province over ANOTHER period (default: same period a year earlier), or
          · ANOTHER province over any period.
+     - If ui/landcover.js is present: each series (A, B) gets its own land-cover
+       picker (All / Forest / Cropland / Other) and an extra comparison mode,
+       "other land cover" (same province and period, different land type).
      - Summary cards: totals, % difference, peak day/month, mean.
      - Download CSV (data for both series) and PNG (chart, calendar).
 
@@ -38,6 +41,8 @@
       vi: {
         a: 'Vùng A', b: 'Vùng B (so sánh)', prov: 'Tỉnh / thành', nat: 'Cả nước (Việt Nam)', from: 'Từ ngày', to: 'Đến ngày',
         cmpWith: 'So sánh với', none: 'Không so sánh', time: 'Cùng tỉnh, khoảng khác', other: 'Tỉnh khác',
+        cover: 'Lớp phủ khác', lc: 'Lớp phủ đất',
+        lcNote: 'Lớp phủ đất: theo ngày đếm đúng các điểm cháy nằm trong loại đất đó; theo tháng là số hài hòa × tỷ lệ loại đất của tỉnh trong tháng (ước tính).',
         loading: 'Đang tải dữ liệu…', total: 'Tổng điểm cháy', diff: 'Chênh lệch A so với B', peakD: 'Ngày cao nhất', peakM: 'Tháng cao nhất',
         avgD: 'Trung bình / ngày', avgM: 'Trung bình / tháng', chart: 'Diễn biến điểm cháy', cal: 'Lịch cháy',
         byDay: 'theo ngày', byMonth: 'theo tháng (thang hài hòa)', csv: '⬇ Tải CSV', png: '⬇ PNG biểu đồ', pngCal: '⬇ PNG lịch',
@@ -49,6 +54,8 @@
       en: {
         a: 'Region A', b: 'Region B (comparison)', prov: 'Province', nat: 'National (Vietnam)', from: 'From', to: 'To',
         cmpWith: 'Compare with', none: 'No comparison', time: 'Same province, other period', other: 'Other province',
+        cover: 'Other land cover', lc: 'Land cover',
+        lcNote: 'Land cover: daily values count only the fire points on that land type; monthly values are harmonized counts × that land type\'s share in the province that month (estimate).',
         loading: 'Loading data…', total: 'Total fire points', diff: 'A vs B', peakD: 'Peak day', peakM: 'Peak month',
         avgD: 'Mean / day', avgM: 'Mean / month', chart: 'Fire activity', cal: 'Fire calendar',
         byDay: 'daily', byMonth: 'monthly (harmonized scale)', csv: '⬇ CSV', png: '⬇ Chart PNG', pngCal: '⬇ Calendar PNG',
@@ -75,12 +82,13 @@
       if (C) return;
       const p = selP >= 0 ? selP : -1;
       const f = clampD(iso(sel.y, sel.m, 1)), t = clampD(iso(sel.y, sel.m, dim(sel.y, sel.m)));
-      C = { a: { p, f, t }, mode: 'time', b: { p, f: shiftYear(f, -1), t: shiftYear(t, -1) }, bTouched: false };
+      const lc = window.LC268 ? LC268.current() : 'all';
+      C = { a: { p, f, t, lc }, mode: 'time', b: { p, f: shiftYear(f, -1), t: shiftYear(t, -1), lc }, bTouched: false };
     }
 
     /* ---------- Data ---------- */
     const waitDays = y => new Promise(res => {
-      const ok = () => DAYS.has(y) && DAYS.get(y) !== 'loading';
+      const ok = () => DAYS.has(y) && (window.LC268 ? LC268.days(y) : DAYS.get(y)) !== 'loading';
       if (ok()) return res();
       loadDays(y); let n = 0;
       const iv = setInterval(() => { if (ok() || ++n > 300) { clearInterval(iv); res(); } }, 80);
@@ -88,7 +96,8 @@
     const parse = s => s.split('-').map(Number);
     const spanDays = (f, t) => Math.round((Date.UTC(...parse(t).map((v, i) => i === 1 ? v - 1 : v)) - Date.UTC(...parse(f).map((v, i) => i === 1 ? v - 1 : v))) / 864e5) + 1;
 
-    async function daily(p, f, t) {
+    const hasLC = () => !!window.LC268;
+    async function daily(p, f, t, lc = 'all') {
       const [y0, m0, d0] = parse(f), [y1, m1, d1] = parse(t);
       await Promise.all(d3.range(y0, y1 + 1).map(waitDays));
       const out = [], idx = new Map();
@@ -98,11 +107,12 @@
         idx.set(k, out.length); out.push({ k, v: 0, fac, est: raw });
       }
       for (let y = y0; y <= y1; y++) {
-        const D = DAYS.get(y); if (!D || !D.n) continue;
+        const D = hasLC() ? LC268.days(y) : DAYS.get(y); if (!D || !D.n) continue;
         const a = (y === y0 ? doy(y0, m0, d0) : 0) * 1440, b = (y === y1 ? doy(y1, m1, d1) + 1 : 400) * 1440;
         for (let i = lowerB(D.t, a), e = lowerB(D.t, b); i < e; i++) {
           if (!(D.sc[i] & 128)) continue;
           if (p >= 0 && PI2P[D.pi[i]] !== p) continue;
+          if (lc !== 'all' && !LC268.keep(lc, Math.floor((D.la[i] / 4000 + 8) / .01), Math.floor((D.lo[i] / 4000 + 102) / .01), y)) continue;
           const k = new Date(Date.UTC(y, 0, 1) + Math.floor(D.t[i] / 1440) * 864e5).toISOString().slice(0, 10);
           const j = idx.get(k); if (j !== undefined) out[j].v++;
         }
@@ -110,10 +120,13 @@
       out.forEach(o => { o.v = o.v * o.fac; });
       return out;
     }
-    function monthly(p, f, t) {
+    function monthly(p, f, t, lc = 'all') {
       const [y0, m0, d0] = parse(f), [y1, m1, d1] = parse(t), out = [];
+      const PVb = hasLC() ? LC268.pv() : PV, natb = hasLC() ? LC268.nat : nat;
       for (let y = y0, m = m0; y < y1 || (y === y1 && m <= m1); m === 12 ? (y++, m = 1) : m++) {
-        const k = mi(y, m), v = p < 0 ? nat(y, m) : (k !== undefined && PV ? PV[k][p] || 0 : 0);
+        const k = mi(y, m), ym = `${y}-${p2(m)}`;
+        let v = p < 0 ? natb(y, m) : (k !== undefined && PVb ? PVb[k][p] || 0 : 0);
+        if (lc !== 'all') v *= LC268.share(lc, p < 0 ? 'VN' : provs[p].properties.id, ym);
         const part = (y === y0 && m === m0 && d0 > 1) || (y === y1 && m === m1 && d1 < dim(y, m)) || natRow(y, m)?.partial;
         out.push({ k: `${y}-${p2(m)}`, v, part, est: y * 100 + m < 201202 });
       }
@@ -122,7 +135,8 @@
 
     /* ---------- Drawing ---------- */
     const pName = p => p < 0 ? tx('nat') : provs[p].properties.shapeName;
-    const lblA = () => `A · ${pName(C.a.p)} (${C.a.f} → ${C.a.t})`, lblB = () => `B · ${pName(C.b.p)} (${C.b.f} → ${C.b.t})`;
+    const lcName = r => hasLC() && r.lc && r.lc !== 'all' ? ' · ' + LC268.name(r.lc) : '';
+    const lblA = () => `A · ${pName(C.a.p)}${lcName(C.a)} (${C.a.f} → ${C.a.t})`, lblB = () => `B · ${pName(C.b.p)}${lcName(C.b)} (${C.b.f} → ${C.b.t})`;
     const fmtV = v => fmt(v);
 
     function lineChart(A, B, gran) {
@@ -213,7 +227,10 @@
     const provOpts = selV => `<option value="-1"${selV === -1 ? ' selected' : ''}>${tx('nat')}</option>` +
       provs.map((f, i) => [f.properties.shapeName, i]).sort((a, b) => a[0].localeCompare(b[0], 'vi'))
         .map(([n, i]) => `<option value="${i}"${i === selV ? ' selected' : ''}>${n}</option>`).join('');
-    const dateIn = (id, v) => `<input id="${id}" type="date" class="rinp mono" min="${minD()}" max="${maxD()}" value="${v}">`;
+    const lcSel = (id, v, dis) => !hasLC() ? '' : `<div><div class="lab">${tx('lc')}</div><select id="${id}" class="rinp"${dis ? ' disabled' : ''}>` +
+      ['all', 'forest', 'agri', 'other'].map(k => `<option value="${k}"${k === v ? ' selected' : ''}>${LC268.name(k)}</option>`).join('') + '</select></div>';
+    const otherLc = v => v === 'forest' ? 'agri' : 'forest';
+    const dateIn = (id, v, dis) => `<input id="${id}" type="date" class="rinp mono" min="${minD()}" max="${maxD()}" value="${v}"${dis ? ' disabled' : ''}>`;
     function renderCmp() {
       initState();
       const body = q('#anaBody');
@@ -223,16 +240,18 @@
           <div><div class="lab">${tx('prov')}</div><select id="cAp" class="rinp">${provOpts(C.a.p)}</select></div>
           <div><div class="lab">${tx('from')}</div>${dateIn('cAf', C.a.f)}</div>
           <div><div class="lab">${tx('to')}</div>${dateIn('cAt', C.a.t)}</div>
+          ${lcSel('cAl', C.a.lc)}
         </div>
         <div><div class="lab" style="margin-bottom:6px">${tx('cmpWith')}</div>
           <div class="seg" id="cMode" style="max-width:100%;overflow-x:auto">
-            <button data-cm="none">${tx('none')}</button><button data-cm="time">${tx('time')}</button><button data-cm="prov">${tx('other')}</button></div></div>
+            <button data-cm="none">${tx('none')}</button><button data-cm="time">${tx('time')}</button><button data-cm="prov">${tx('other')}</button>${hasLC() ? `<button data-cm="cover">${tx('cover')}</button>` : ''}</div></div>
         <div id="cBbox" style="display:${C.mode === 'none' ? 'none' : 'block'}">
           <div class="lab" style="color:${CB};margin-bottom:6px">${tx('b')}</div>
           <div class="rform">
-            <div><div class="lab">${tx('prov')}</div><select id="cBp" class="rinp"${C.mode === 'time' ? ' disabled' : ''}>${provOpts(C.b.p)}</select></div>
-            <div><div class="lab">${tx('from')}</div>${dateIn('cBf', C.b.f)}</div>
-            <div><div class="lab">${tx('to')}</div>${dateIn('cBt', C.b.t)}</div>
+            <div><div class="lab">${tx('prov')}</div><select id="cBp" class="rinp"${C.mode === 'time' || C.mode === 'cover' ? ' disabled' : ''}>${provOpts(C.b.p)}</select></div>
+            <div><div class="lab">${tx('from')}</div>${dateIn('cBf', C.b.f, C.mode === 'cover')}</div>
+            <div><div class="lab">${tx('to')}</div>${dateIn('cBt', C.b.t, C.mode === 'cover')}</div>
+            ${lcSel('cBl', C.b.lc)}
           </div>
         </div>
         <div id="cOut" style="display:flex;flex-direction:column;gap:14px"></div>`;
@@ -240,27 +259,40 @@
       q('#cMode').onclick = e => {
         const m = e.target.closest('button')?.dataset.cm; if (!m || m === C.mode) return;
         C.mode = m; C.bTouched = false;
-        if (m === 'time') C.b = { p: C.a.p, f: shiftYear(C.a.f, -1), t: shiftYear(C.a.t, -1) };
-        if (m === 'prov') { const alt = C.a.p === -1 ? 0 : -1; C.b = { p: C.b.p === C.a.p ? alt : C.b.p, f: C.a.f, t: C.a.t }; }
+        if (m === 'time') C.b = { p: C.a.p, f: shiftYear(C.a.f, -1), t: shiftYear(C.a.t, -1), lc: C.a.lc };
+        if (m === 'prov') { const alt = C.a.p === -1 ? 0 : -1; C.b = { p: C.b.p === C.a.p ? alt : C.b.p, f: C.a.f, t: C.a.t, lc: C.a.lc }; }
+        if (m === 'cover') C.b = { p: C.a.p, f: C.a.f, t: C.a.t, lc: otherLc(C.a.lc) };
         renderCmp();
       };
       const read = () => {
         const fix = (f, t) => { f = clampD(f || minD()); t = clampD(t || maxD()); return f <= t ? [f, t] : [t, f]; };
         [C.a.f, C.a.t] = fix(q('#cAf').value, q('#cAt').value); C.a.p = +q('#cAp').value;
-        if (C.mode !== 'none') { [C.b.f, C.b.t] = fix(q('#cBf').value, q('#cBt').value); C.b.p = C.mode === 'time' ? C.a.p : +q('#cBp').value; }
+        if (q('#cAl')) C.a.lc = q('#cAl').value;
+        if (C.mode !== 'none') {
+          [C.b.f, C.b.t] = fix(q('#cBf').value, q('#cBt').value);
+          C.b.p = C.mode === 'time' || C.mode === 'cover' ? C.a.p : +q('#cBp').value;
+          if (q('#cBl')) C.b.lc = q('#cBl').value;
+        }
       };
       // Until the user edits B themselves, B follows A: "same province" = A's period shifted back 1 year, "other province" = same period as A
       const syncB = () => {
+        if (C.mode === 'cover') {                       // "other land cover": B always = A's province and period, only the land cover differs
+          C.b.p = C.a.p; C.b.f = C.a.f; C.b.t = C.a.t; if (C.b.lc === C.a.lc) C.b.lc = otherLc(C.a.lc);
+          if (q('#cBf')) { q('#cBf').value = C.b.f; q('#cBt').value = C.b.t; q('#cBl').value = C.b.lc; }
+          return;
+        }
         if (C.mode === 'none' || C.bTouched) return;
         if (C.mode === 'time') { C.b.f = shiftYear(C.a.f, -1); C.b.t = shiftYear(C.a.t, -1); } else { C.b.f = C.a.f; C.b.t = C.a.t; }
+        if (C.mode === 'cover') { if (C.b.lc === C.a.lc) C.b.lc = otherLc(C.a.lc); } else C.b.lc = C.a.lc;
         if (q('#cBf')) { q('#cBf').value = C.b.f; q('#cBt').value = C.b.t; }
+        if (q('#cBl')) q('#cBl').value = C.b.lc;
       };
-      ['#cAp', '#cAf', '#cAt', '#cBp', '#cBf', '#cBt'].forEach(s => {
+      ['#cAp', '#cAf', '#cAt', '#cAl', '#cBp', '#cBf', '#cBt', '#cBl'].forEach(s => {
         const el = q(s); if (!el) return;
         el.onchange = () => {
           if (s.startsWith('#cB')) C.bTouched = true;
           read(); syncB();
-          if (C.mode === 'time' && q('#cBp')) q('#cBp').value = C.a.p;
+          if ((C.mode === 'time' || C.mode === 'cover') && q('#cBp')) q('#cBp').value = C.a.p;
           run();
         };
       });
@@ -272,7 +304,11 @@
       out.innerHTML = `<div style="color:var(--dim);font-size:13px">${tx('loading')}</div>`;
       const hasB = C.mode !== 'none';
       const gran = Math.max(spanDays(C.a.f, C.a.t), hasB ? spanDays(C.b.f, C.b.t) : 0) <= 366 ? 'day' : 'month';
-      const get = r => gran === 'day' ? daily(r.p, r.f, r.t) : Promise.resolve(monthly(r.p, r.f, r.t));
+      const useLc = hasLC() && (C.a.lc !== 'all' || (hasB && C.b.lc !== 'all'));
+      if (useLc && !LC268.ready()) { try { await LC268.load(); } catch (e) { console.error('[compare] land cover', e); } }
+      if (my !== tok) return;
+      const lcOf = r => hasLC() && LC268.ready() ? r.lc || 'all' : 'all';
+      const get = r => gran === 'day' ? daily(r.p, r.f, r.t, lcOf(r)) : Promise.resolve(monthly(r.p, r.f, r.t, lcOf(r)));
       const [A, B] = await Promise.all([get(C.a), hasB ? get(C.b) : null]);
       if (my !== tok || !q('#cOut')) return;
       if (!A.length) { out.innerHTML = `<div style="color:var(--dim)">${tx('empty')}</div>`; return; }
@@ -286,8 +322,9 @@
         ${lineChart(A, B, gran)}
         <div class="lab">${tx('cal')} · ${tx(gran === 'day' ? 'byDay' : 'byMonth')}</div>
         ${cal(A, mx, lblA(), CA)}${B ? cal(B, mx, lblB(), CB) : ''}
-        <div style="font-size:12px;color:var(--dim);line-height:1.55">${tx(gran === 'day' ? 'noteDay' : 'noteMonth')}${B ? ' ' + tx('alignNote') : ''}</div>`;
-      const base = `fire_${C.a.p < 0 ? 'VN' : provs[C.a.p].properties.id}_${C.a.f}_${C.a.t}` + (B ? `_vs_${C.b.p < 0 ? 'VN' : provs[C.b.p].properties.id}_${C.b.f}_${C.b.t}` : '');
+        <div style="font-size:12px;color:var(--dim);line-height:1.55">${tx(gran === 'day' ? 'noteDay' : 'noteMonth')}${B ? ' ' + tx('alignNote') : ''}${useLc ? ' ' + tx('lcNote') : ''}</div>`;
+      const tag = r => (r.p < 0 ? 'VN' : provs[r.p].properties.id) + (hasLC() && r.lc && r.lc !== 'all' ? '-' + r.lc : '');
+      const base = `fire_${tag(C.a)}_${C.a.f}_${C.a.t}` + (B ? `_vs_${tag(C.b)}_${C.b.f}_${C.b.t}` : '');
       q('#cCsv').onclick = () => {
         const n = Math.max(A.length, B ? B.length : 0), rows = ['idx,A_date,A_value,A_estimate' + (B ? ',B_date,B_value,B_estimate' : '')];
         for (let i = 0; i < n; i++) {
