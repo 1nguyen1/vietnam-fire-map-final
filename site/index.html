@@ -332,7 +332,7 @@ const T={
   sHeat:'Loang nhiệt',sDots:'Lưới chấm',sGrid:'Ô lưới 1 km',cell:'Ô 1 km',mDay:'Ngày',mMonth:'Tháng',mQuarter:'Quý',mYear:'Năm',
   total:'Tổng điểm cháy',top:'Tỉnh cháy nhiều nhất',showMore:'Xem thêm',showLess:'Thu gọn',
   legend:'Mức độ cháy',low:'Ít',high:'Nhiều',unit:'điểm cháy',
-  anaBtn:'Lịch & Biểu đồ',methBtn:'Phương pháp',anaTitle:'Phân tích & Lịch cháy (2003–2026)',tabCal:'Lịch năm × tháng',tabChart:'Biểu đồ chuỗi',tabReg:'Vùng & Khoảng ngày',methTitle:'Phương pháp, Kiểm chứng & Hạn chế',setPalette:'Bảng màu',palFire:'Mặc định',palCb:'Mù màu (Cividis)',settings:'Cài đặt',setLang:'Ngôn ngữ',setTheme:'Kiểu nền bản đồ',thGlass:'Trong suốt',thTerrain:'Địa hình thật',setView:'Chế độ xem',vwGlobe:'Địa cầu tròn',vwVn:'Việt Nam',
+  anaBtn:'Lịch & Biểu đồ',methBtn:'Phương pháp',anaTitle:'Phân tích & Lịch cháy',tabCal:'Lịch năm × tháng',tabChart:'Biểu đồ chuỗi',tabReg:'Vùng & Khoảng ngày',methTitle:'Phương pháp, Kiểm chứng & Hạn chế',setPalette:'Bảng màu',palFire:'Mặc định',palCb:'Mù màu (Cividis)',settings:'Cài đặt',setLang:'Ngôn ngữ',setTheme:'Kiểu nền bản đồ',thGlass:'Trong suốt',thTerrain:'Địa hình thật',setView:'Chế độ xem',vwGlobe:'Địa cầu tròn',vwVn:'Việt Nam',
   patrolBtn:'Bản đồ tuần tra',patrolTitle:'Bản đồ ưu tiên tuần tra',patrolMonth:'Giai đoạn 2012–2025',patrolHardOnly:'Ô khó tiếp cận',
   pHigh:'Ưu tiên cao',pMed:'Trung bình',pLow:'Thấp',pCells:'ô',
   pNoRed:'Không có điểm cháy lặp lại khó tiếp cận ở tỉnh này.',
@@ -349,7 +349,7 @@ const T={
   sHeat:'Heat glow',sDots:'Dot grid',sGrid:'Grid 1 km',cell:'1 km cell',mDay:'Day',mMonth:'Month',mQuarter:'Quarter',mYear:'Year',
   total:'Total fire points',top:'Most affected provinces',showMore:'Show more',showLess:'Show less',
   legend:'Fire intensity',low:'Low',high:'High',unit:'fire points',
-  anaBtn:'Calendar & Charts',methBtn:'Method',anaTitle:'Fire Calendar & Analytics (2003–2026)',tabCal:'Year × Month',tabChart:'Time series',tabReg:'Region & Date range',methTitle:'Method, Validation & Limitations',setPalette:'Color palette',palFire:'Default',palCb:'Colorblind (Cividis)',settings:'Settings',setLang:'Language',setTheme:'Map basemap',thGlass:'Transparent',thTerrain:'Real terrain',setView:'View mode',vwGlobe:'Globe',vwVn:'Vietnam',
+  anaBtn:'Calendar & Charts',methBtn:'Method',anaTitle:'Fire Calendar & Analytics',tabCal:'Year × Month',tabChart:'Time series',tabReg:'Region & Date range',methTitle:'Method, Validation & Limitations',setPalette:'Color palette',palFire:'Default',palCb:'Colorblind (Cividis)',settings:'Settings',setLang:'Language',setTheme:'Map basemap',thGlass:'Transparent',thTerrain:'Real terrain',setView:'View mode',vwGlobe:'Globe',vwVn:'Vietnam',
   patrolBtn:'Patrol map',patrolTitle:'Patrol priority map',patrolMonth:'Period 2012–2025',patrolHardOnly:'Hard-to-reach cells',
   pHigh:'High priority',pMed:'Medium',pLow:'Low',pCells:'cells',
   pNoRed:'No hard-to-reach recurring hotspots in this province.',
@@ -1123,10 +1123,7 @@ function overlapHTML(){
     ${yt.map(t=>`<text x="${x(ix(t+'-01')<0?0:ix(t+'-01'))}" y="${H-8}" fill="#e6d5b0" font-size="11" text-anchor="middle">${t}</text>`).join('')}
     <text x="${P.l-6}" y="${y(y.domain()[1]/1.08)+4}" fill="#e6d5b0" font-size="11" text-anchor="end">${fmt(y.domain()[1]/1.08)}</text>
     ${svgLegend([{c:'#b39ddb',t:vi?'VIIRS S-NPP đo thật':'VIIRS S-NPP observed'},{c:'#f2c063',t:vi?'Dự đoán chỉ từ MODIS-Aqua':'Predicted from MODIS-Aqua only',d:1}],P.l,16)}
-  </svg>
-  <div style="font-size:12px;color:var(--dim);line-height:1.55;margin-top:6px">${vi
-    ?`Mô hình chỉ được học trên 2012–2017, rồi dự đoán số VIIRS <b>chỉ từ dữ liệu MODIS-Aqua</b>. Trên 2018–2021 (chưa từng thấy) hai đường gần như trùng nhau: đây là bằng chứng phép quy đổi dùng được cho giai đoạn 2003–2011 khi chỉ có MODIS. Từ 2022 Aqua trôi quỹ đạo nên dự đoán lệch lên, vì vậy chuỗi hài hòa dùng VIIRS đo thật cho giai đoạn này.`
-    :`The model is trained on 2012–2017 only, then predicts VIIRS counts <b>from MODIS-Aqua alone</b>. On the unseen 2018–2021 test the two lines nearly coincide, which supports using the conversion for 2003–2011 when only MODIS exists. From 2022 Aqua drifts, so predictions run high; the harmonized series uses observed VIIRS there.`}</div>`;
+  </svg>`;
 }
 function renderAnalytics(){
   const selEl=$('#anaProv');
