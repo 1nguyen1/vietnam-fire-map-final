@@ -19,9 +19,8 @@ html.rUI #rTools>*{flex-shrink:0;position:static;left:auto;right:auto;top:auto;b
 html.rUI #rTools #fit{opacity:1;pointer-events:auto}
 html.rUI #rTools #fit:not(.show){display:none}
 
-/* Cài đặt chuyển lên góc phải hàng 1, menu thả xuống */
-html.rUI header #settingsWrap{position:relative;right:auto;bottom:auto;z-index:auto}
-html.rUI #settingsPop{top:calc(100% + 10px);bottom:auto}
+/* Cài đặt — máy tính: giữ ở góc dưới bên phải như bản gốc, menu mở lên trên */
+html.rUI header #settingsWrap{position:fixed;right:20px;bottom:22px;z-index:6}
 
 /* Panel trên máy tính nằm dưới hàng công cụ */
 html.rUI #panel{top:106px}
@@ -31,6 +30,9 @@ html.rUI #rHandle{display:none}
 html.rUI.rMob header{padding:10px 12px;gap:8px}
 html.rUI.rMob .pill{height:32px;padding:0 11px}
 html.rUI.rMob .seg button{height:26px;padding:0 10px}
+/* Cài đặt — điện thoại: góc trên bên phải, menu thả xuống và nằm TRÊN mọi nút khác */
+html.rUI.rMob header #settingsWrap{position:relative;right:auto;bottom:auto;z-index:10}
+html.rUI.rMob #settingsPop{top:calc(100% + 10px);bottom:auto;width:min(264px,calc(100vw - 24px))}
 /* nút chỉ còn biểu tượng để hàng 1 gọn */
 html.rUI.rMob #back span+span,
 html.rUI.rMob #methBtn span+span,
