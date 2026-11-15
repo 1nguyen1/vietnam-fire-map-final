@@ -32,29 +32,25 @@ We used **Claude (Anthropic)** as an assistant for research, coding and debuggin
 - **Human work:** the choice of method (Poisson GLM on the overlap years), data choices, validation and every result were set,
   reviewed and tested by team 268LTK. No NASA logos or branding were generated.
 
----
-
-## Tiếng Việt
-
-## Cấu trúc
-| Thư mục | Nội dung |
+## Repository layout
+| Folder | Contents |
 |---|---|
-| `site/` | Web tĩnh được deploy lên Vercel (`index.html`, `lib/`, `uploads/`, `data/`) |
-| `pipeline/` | Code tạo dữ liệu: `harmonize.py` → `export_web.py` → `build_vercel.py`, kiểm tra `kiem_tra_deploy.py` |
-| `.github/workflows/` | GitHub Actions: tự chạy kiểm tra dữ liệu mỗi lần push / pull request |
+| `site/` | Static web app deployed on Vercel (`index.html`, `lib/`, `ui/`, `uploads/`, `data/`) |
+| `pipeline/` | Data pipeline: `harmonize.py` → `export_web.py` → `build_vercel.py`, check with `kiem_tra_deploy.py`; land cover: `landcover.py` |
+| `.github/workflows/` | GitHub Actions: runs the data check on every push / pull request |
 
-## Cập nhật web
-- **Sửa giao diện:** sửa `site/index.html` → commit → push. Vercel tự deploy (~1 phút).
-- **Cập nhật dữ liệu** (cần dữ liệu FIRMS gốc trên máy, không lưu trong repo):
+## Updating the app
+- **UI changes:** edit files in `site/` → commit → push. Vercel redeploys automatically (~1 min).
+- **Data update** (needs the raw FIRMS data locally; it is not stored in this repo):
   ```bash
   pip install -r pipeline/requirements.txt
   cd pipeline
-  python harmonize.py    --data <thu_muc_FIRMS> --out ../output
+  python harmonize.py    --data <FIRMS_folder> --out ../output
   python export_web.py   --out ../output --boundaries vn_34_provinces.geojson
   python build_vercel.py --out ../output --deploy ../site
   python kiem_tra_deploy.py ../output ../site
   ```
-  rồi commit thư mục `site/` và push.
+  then commit the `site/` folder and push.
 
-## Cấu hình Vercel
-Root Directory: `site` · Framework Preset: Other · Build Command / Output Directory: để trống.
+## Vercel settings
+Root Directory: `site` · Framework Preset: Other · Build Command / Output Directory: leave empty.
