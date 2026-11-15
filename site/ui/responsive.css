@@ -1,0 +1,89 @@
+/* =====================================================================
+   ui/responsive.css  —  Responsive layout module (desktop + mobile)
+   Team 268LTK · NASA Space Apps 2026
+
+   Mọi quy tắc đều bắt đầu bằng "html.rUI", class này chỉ được bật khi
+   ui/responsive.js chạy thành công. Nếu JS lỗi hoặc bị gỡ, file CSS này
+   không có tác dụng gì và web quay về giao diện gốc.
+
+   Gỡ module: xoá 2 dòng có chữ "ui/responsive" trong index.html.
+   ===================================================================== */
+
+/* ---------- Chung cho mọi màn hình ---------- */
+html.rUI header{z-index:8}
+html.rUI header .rbreak{flex-basis:100%;height:0;padding:0;margin:0;pointer-events:none}
+
+/* Hàng công cụ (hàng 2 của header): Toàn cảnh · Tuần tra · Lịch & Biểu đồ · Kiểu hiển thị */
+html.rUI #rTools{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;max-width:100%}
+html.rUI #rTools>*{flex-shrink:0;position:static;left:auto;right:auto;top:auto;bottom:auto}
+html.rUI #rTools #fit{opacity:1;pointer-events:auto}
+html.rUI #rTools #fit:not(.show){display:none}
+
+/* Cài đặt chuyển lên góc phải hàng 1, menu thả xuống */
+html.rUI header #settingsWrap{position:relative;right:auto;bottom:auto;z-index:auto}
+html.rUI #settingsPop{top:calc(100% + 10px);bottom:auto}
+
+/* Panel trên máy tính nằm dưới hàng công cụ */
+html.rUI #panel{top:106px}
+html.rUI #rHandle{display:none}
+
+/* ---------- Điện thoại / màn hình hẹp (< 900px) ---------- */
+html.rUI.rMob header{padding:10px 12px;gap:8px}
+html.rUI.rMob .pill{height:32px;padding:0 11px}
+html.rUI.rMob .seg button{height:26px;padding:0 10px}
+/* nút chỉ còn biểu tượng để hàng 1 gọn */
+html.rUI.rMob #back span+span,
+html.rUI.rMob #methBtn span+span,
+html.rUI.rMob #settingsBtn span+span{display:none}
+
+/* hàng công cụ cuộn ngang, mờ dần ở mép phải để báo còn nút */
+html.rUI.rMob #rTools{overflow-x:auto;overflow-y:hidden;scrollbar-width:none;padding-right:28px;
+  -webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent);
+          mask-image:linear-gradient(90deg,#000 calc(100% - 28px),transparent)}
+html.rUI.rMob #rTools::-webkit-scrollbar{display:none}
+
+/* Chú thích: thanh ngang nhỏ ngay dưới header */
+html.rUI.rMob #legend,
+html.rUI.rMob body.vn #legend{top:var(--rLegTop,96px);bottom:auto;left:12px;transform:none;
+  flex-direction:row;align-items:center;gap:8px;padding:6px 12px;border-radius:999px;max-width:calc(100% - 24px)}
+html.rUI.rMob #legend .lab{font-size:10px;letter-spacing:.06em;white-space:nowrap}
+html.rUI.rMob #legend .vwrap{align-items:center;gap:6px}
+html.rUI.rMob #legend .g{order:2;width:84px;height:8px;border-radius:4px;
+  background:linear-gradient(90deg,rgba(230,213,176,.14),#f2c063 28%,#f08a34 52%,#e2482a 76%,#a80f1d)}
+html.rUI.rMob #legend .vt{display:contents}
+html.rUI.rMob #legend .vt>div:first-child{order:3}
+html.rUI.rMob #legend .vt>div:last-child{order:1}
+html.rUI.rMob #legend .vt span{display:none}
+html.rUI.rMob #legend .vt b{font-size:11px}
+html.rUI.rMob #legend .pleg{flex-direction:row;gap:10px;white-space:nowrap}
+html.rUI.rMob body.patrol #legTitle{display:none}
+
+/* Panel thành "bottom sheet": thu gọn mặc định, kéo/bấm thanh nắm để mở */
+html.rUI.rMob #panel{top:auto;bottom:0;left:0;right:0;width:auto;z-index:5;
+  max-height:62dvh;padding:0 14px calc(12px + env(safe-area-inset-bottom,0px));
+  border-radius:18px 18px 0 0;border-bottom:0;box-shadow:0 -10px 30px rgba(0,0,0,.35)}
+html.rUI.rMob #panel.rCollapsed{max-height:var(--rPeek,100px);overflow:hidden}
+html.rUI.rMob #panel.rCollapsed #fireBox,
+html.rUI.rMob #panel.rCollapsed #patrolBox{overflow:hidden}
+html.rUI.rMob #rHandle{display:flex;align-items:center;justify-content:center;width:100%;height:24px;flex-shrink:0;touch-action:manipulation}
+html.rUI.rMob #rHandle i{width:40px;height:4px;border-radius:2px;background:rgba(230,213,176,.42)}
+html.rUI.rMob #total{font-size:26px;margin:0}
+
+/* Thanh thời gian: căn giữa, nằm ngay trên bottom sheet */
+html.rUI.rMob #bar{left:50%;translate:-50% 0;bottom:calc(var(--rPeek,100px) + 10px);max-width:calc(100% - 16px);gap:6px}
+html.rUI.rMob #modes button{padding:0 9px}
+html.rUI.rMob #plabel{min-width:132px;padding:0 8px;font-size:12px}
+
+/* Cửa sổ Lịch & Biểu đồ / Phương pháp: toàn màn hình */
+html.rUI.rMob .modal{padding:0}
+html.rUI.rMob .mbox{width:100% !important;height:100dvh;max-height:100dvh;border-radius:0;border:0}
+html.rUI.rMob .mhead{padding:10px 12px;gap:8px}
+html.rUI.rMob .mhead h2{order:1;flex:1 1 calc(100% - 50px);font-size:14px}
+html.rUI.rMob .mhead .mclose{order:2}
+html.rUI.rMob #anaTabs{order:3;max-width:100%;overflow-x:auto;scrollbar-width:none}
+html.rUI.rMob #anaTabs::-webkit-scrollbar{display:none}
+html.rUI.rMob #anaProv{order:4;width:100% !important}
+html.rUI.rMob .mbody{padding:12px}
+html.rUI.rMob .calgrid{overflow-x:auto;padding-bottom:6px}
+html.rUI.rMob .calyr{position:sticky;left:0;z-index:3;background:rgba(10,19,50,.96)}
+html.rUI.rMob .mbody>div[style*="space-between"]{flex-wrap:wrap;gap:8px}

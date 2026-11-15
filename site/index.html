@@ -11,7 +11,6 @@
 <style>
 :root{--beige:230,213,176;--ink:#e6d5b0;--dim:rgba(230,213,176,.62);--line:rgba(230,213,176,.16);--glass:rgba(9,17,44,.66);--hot:#f08a34}
 *{box-sizing:border-box}
-#methBtn{display:none !important}
 html,body{height:100%;margin:0}
 body{overflow:hidden;background:radial-gradient(120% 90% at 50% 0%,#10204a 0%,#0a1433 45%,#060b20 100%);color:var(--ink);font-family:"Be Vietnam Pro",system-ui,sans-serif;font-size:14px;-webkit-font-smoothing:antialiased}
 body.terrain{--glass:rgba(9,17,44,.84);--line:rgba(230,213,176,.24)}
@@ -186,6 +185,7 @@ body.patrol #bar{opacity:0;pointer-events:none;visibility:hidden}
 .gr button.qB{box-shadow:inset 0 -2px 0 #f08a34}
 .gr button.qD{box-shadow:inset 0 -2px 0 #f2c063}
 </style>
+<link rel="stylesheet" href="ui/responsive.css"><!-- responsive module: xoá dòng này để về giao diện gốc -->
 </head>
 <body class="globe">
 <canvas id="stars"></canvas>
@@ -1318,5 +1318,6 @@ $('#palettes').onclick=e=>{const p=e.target.dataset.pal;if(!p||p===palMode)retur
   applyLang();if(S.z===1)swapHeat(true)};
 
 </script>
+<script src="ui/responsive.js"></script><!-- responsive module: xoá dòng này để về giao diện gốc -->
 </body>
 </html>
