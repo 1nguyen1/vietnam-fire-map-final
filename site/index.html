@@ -336,7 +336,7 @@ const T={
   patrolBtn:'Bản đồ tuần tra',patrolTitle:'Bản đồ ưu tiên tuần tra',patrolMonth:'Giai đoạn 2012–2025',patrolHardOnly:'Ô khó tiếp cận',
   pHigh:'Ưu tiên cao',pMed:'Trung bình',pLow:'Thấp',pCells:'ô',
   pNoRed:'Không có điểm cháy lặp lại khó tiếp cận ở tỉnh này.',
-  pPopup:(yrs,mo,acc,km,sl)=>`Cháy lặp lại ${yrs}/14 năm (${mo}, 2012–2025). Tiếp cận: ${acc}. Cách đường xe ≈ ${km} km (ước tính). Độ dốc TB ${sl}°.`,
+  pPopup:(yrs,mo,acc,km,sl)=>`Cháy lặp lại ${yrs}/14 năm (${mo}, 2012–2025)<br>Tiếp cận: ${acc}<br>Cách đường xe ≈ ${km} km (ước tính)<br>Độ dốc TB ${sl}°`,
   pDir:'Chỉ đường (Google Maps)',pFoot:'Tuyến đường kết thúc tại đường xe chạy gần nhất; đoạn cuối có thể phải đi bộ.',
   accMap:{easy:'Dễ tiếp cận',medium:'Trung bình',hard:'Khó tiếp cận',unknown:'Chưa đánh giá'},
   loading:'Đang tải bản đồ…',vStd:'Vệ tinh chuẩn',vAll:'Tất cả vệ tinh',dlD:'Đang tải điểm cháy…',more:n=>`+${n} điểm khác`,
@@ -353,7 +353,7 @@ const T={
   patrolBtn:'Patrol map',patrolTitle:'Patrol priority map',patrolMonth:'Period 2012–2025',patrolHardOnly:'Hard-to-reach cells',
   pHigh:'High priority',pMed:'Medium',pLow:'Low',pCells:'cells',
   pNoRed:'No hard-to-reach recurring hotspots in this province.',
-  pPopup:(yrs,mo,acc,km,sl)=>`Hotspots in ${yrs} of 14 years (${mo}, 2012–2025). Access: ${acc}. Nearest vehicle road ≈ ${km} km (estimate). Mean slope ${sl}°.`,
+  pPopup:(yrs,mo,acc,km,sl)=>`Hotspots in ${yrs} of 14 years (${mo}, 2012–2025)<br>Access: ${acc}<br>Nearest vehicle road ≈ ${km} km (estimate)<br>Mean slope ${sl}°`,
   pDir:'Directions (Google Maps)',pFoot:'Route ends at the nearest road; the last stretch may be on foot.',
   accMap:{easy:'Easy to reach',medium:'Moderate',hard:'Hard to reach',unknown:'Not assessed'},
   loading:'Loading map…',vStd:'Reference satellite',vAll:'All satellites',dlD:'Loading fire points…',more:n=>`+${n} more`,
@@ -1103,10 +1103,7 @@ function beforeAfterHTML(){
     <text x="${P.l-6}" y="${y(y.domain()[1]/1.08)+4}" fill="#e6d5b0" font-size="11" text-anchor="end">${fmt(y.domain()[1]/1.08)}</text>
     <text x="${P.l-6}" y="${H-P.b+4}" fill="#e6d5b0" font-size="11" text-anchor="end">0</text>
     ${svgLegend([{c:'#e2482a',t:vi?'Ghép thô (không hài hòa)':'Naive splice',d:1},{c:'#64b5f6',t:'MODIS-Aqua (1 km)'},{c:'#b39ddb',t:'VIIRS S-NPP (375 m)'},{c:'#f2c063',t:vi?'Hài hòa + CI 90%':'Harmonized + 90% CI',w:3}],P.l,16)}
-  </svg>
-  <div style="font-size:12px;color:var(--dim);line-height:1.55;margin-top:6px">${vi
-    ?`Nếu <b style="color:#ff9a7a">ghép thô</b> (MODIS trước 2012, VIIRS sau 2012), số điểm cháy <b>nhảy ×${jump.toFixed(1).replace('.',',')}</b> từ 2011 sang 2012, chỉ vì đổi cảm biến chứ không phải cháy tăng. Sau hài hòa, 2011→2012 chỉ còn thay đổi <b>${hj>=0?'+':''}${hj.toFixed(0)}%</b>. Từ 2012 đường hài hòa trùng với VIIRS S-NPP (thang chuẩn); 2003–2011 là MODIS-Aqua quy đổi, dải màu là khoảng tin cậy 90% (kiểm chứng chéo bỏ-một-năm).`
-    :`A <b style="color:#ff9a7a">naive splice</b> (MODIS before 2012, VIIRS after) jumps <b>×${jump.toFixed(1)}</b> from 2011 to 2012 purely from the sensor change. After harmonization the 2011→2012 change is <b>${hj>=0?'+':''}${hj.toFixed(0)}%</b>. From 2012 the harmonized line equals VIIRS S-NPP (reference scale); 2003–2011 is converted MODIS-Aqua with a 90% CI band (leave-one-year-out).`}</div>`;
+  </svg>`;
 }
 function overlapHTML(){
   const vi=lang==='vi';
