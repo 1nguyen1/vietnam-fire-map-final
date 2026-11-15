@@ -1,6 +1,7 @@
 /* =====================================================================
    ui/responsive.js  —  Responsive layout module (desktop + mobile)
    Team 268LTK · NASA Space Apps 2026
+   AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 
    What this module does (index.html's original code is NOT changed):
      1. Rearranges the controls into 2 rows, the same on desktop and phone:

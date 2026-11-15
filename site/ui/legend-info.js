@@ -1,6 +1,7 @@
 /* =====================================================================
    ui/legend-info.js  —  ⓘ button explaining the "Fire intensity" legend
    Team 268LTK · NASA Space Apps 2026
+   AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 
    Adds a small ⓘ button next to the legend title. Tapping it shows a short
    explanation that updates with the current view:

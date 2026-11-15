@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 """
 build_vercel.py - Dong goi du lieu cho web app tren Vercel (chay SAU harmonize.py va export_web.py).
 

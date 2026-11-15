@@ -2,7 +2,8 @@
   "meta": {
     "contract_version": "1.2",
     "language": "en",
-    "status": "draft"
+    "status": "draft",
+    "ai_assistance": "Text drafted with assistance from Claude (Anthropic); reviewed by team 268LTK."
   },
   "app": {
     "title": "Fire Calendar: Central Highlands & Northwest Vietnam",

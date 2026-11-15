@@ -1,6 +1,7 @@
 /* =====================================================================
    ui/compare.js  —  "Compare" tab in the Calendar & Charts window
    Team 268LTK · NASA Space Apps 2026
+   AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 
    What it does (index.html's original code is NOT changed):
      - Pick a province (or the whole country) and a date range (from–to)

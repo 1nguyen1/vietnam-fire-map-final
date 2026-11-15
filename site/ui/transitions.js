@@ -2,6 +2,7 @@
    ui/transitions.js  —  Province-switch transitions
                          (fire calendar + patrol map)
    Team 268LTK · NASA Space Apps 2026
+   AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 
    REPLACES ui/patrol-switch.js (this file already includes all of it).
    Only the transition effects change; button layout is untouched.

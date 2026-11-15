@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 """
 export_web.py - Chuyen ket qua cua harmonize.py thanh cac file NHO cho web, theo 34 tinh thanh moi.
 

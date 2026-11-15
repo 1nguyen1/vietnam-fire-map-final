@@ -1,6 +1,7 @@
 /* =====================================================================
    ui/patrol-switch.js  —  Instant province switching on the patrol map
    Team 268LTK · NASA Space Apps 2026
+   AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 
    Old problem: when switching province on the patrol map,
      (1) the map started zooming BEFORE the new province's data had loaded,

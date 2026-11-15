@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+# AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 """Kiem tra nhanh thu muc deploy sau khi chay. Dung: python kiem_tra_deploy.py <out> <deploy>"""
 import sys, os, json, gzip, struct
 import pandas as pd

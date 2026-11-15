@@ -1,6 +1,7 @@
 /* =====================================================================
    ui/landcover.js  —  Filter hotspots by land cover (Forest / Cropland / Other)
    Team 268LTK · NASA Space Apps 2026
+   AI use: Written with assistance from Claude (Anthropic); reviewed and tested by team 268LTK.
 
    Data (created by pipeline/landcover.py, in data/landcover/):
      lc_grid.bin.gz            0.01° label grid (ESA WorldCover 2021, checked against MODIS MCD12Q1)
